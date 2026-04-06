@@ -15,7 +15,6 @@
 
 <h2>طلبات التاكسي</h2>
 
-<!-- زر تفعيل الصوت -->
 <button onclick="enableSound()">تشغيل الصوت 🔊</button>
 
 <ul id="ridesList"></ul>
@@ -26,6 +25,9 @@ const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQr9v7IDi_DIWqc
 let displayedOrders = [];
 let soundEnabled = false;
 
+// 🔊 صوت حقيقي
+let audio = new Audio("https://www.soundjay.com/buttons/sounds/beep-01a.mp3");
+
 // تفعيل الصوت
 function enableSound() {
   soundEnabled = true;
@@ -34,7 +36,7 @@ function enableSound() {
 
 // جلب البيانات
 function fetchRides() {
-  fetch(CSV_URL + "&t=" + new Date().getTime()) // 🔥 حل الكاش
+  fetch(CSV_URL + "&t=" + new Date().getTime()) // منع الكاش
     .then(res => res.text())
     .then(csvText => {
       const rows = csvText.split("\n").map(r => r.split(","));
@@ -54,13 +56,7 @@ function fetchRides() {
           dropoff_time: row[6],
           passenger_count: row[7],
           price: row[8],
-          status: row[9],
-          Customer_name: row[10],
-          Customer_phone: row[11],
-          driver_name: row[12],
-          driver_phone: row[13],
-          car_type: row[14],
-          car_number: row[15]
+          status: row[9]
         };
 
         rides.push(ride);
@@ -68,7 +64,7 @@ function fetchRides() {
 
       renderRides(rides);
     })
-    .catch(err => console.error("Error:", err));
+    .catch(err => console.log("Error:", err));
 }
 
 const list = document.getElementById("ridesList");
@@ -91,20 +87,8 @@ function renderRides(rides) {
       ride.status &&
       ride.status.toLowerCase() === "new"
     ){
-      const msg = new SpeechSynthesisUtterance("طلب جديد");
-      window.speechSynthesis.speak(msg);
+      audio.play();
     }
   });
 
-  displayedOrders = rides.map(r => r.order_id);
-}
-
-// تحديث كل 6 ثواني
-setInterval(fetchRides, 6000);
-
-// أول تحميل
-fetchRides();
-</script>
-
-</body>
-</html>
+  displayed
