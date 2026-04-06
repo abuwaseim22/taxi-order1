@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>طلب تاكسي</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+<h2>أرسل طلبك</h2>
+
+<label>من أين؟</label><input type="text" id="from"><br>
+<label>إلى أين؟</label><input type="text" id="to"><br>
+<label>تاريخ الانطلاق  </label><input type="text" id="pickup_date"><br>
+<label>وقت الانطلاق   </label><input type="text" id="pickup_time"><br>
+<label>تاريخ الوصول   </label><input type="text" id="dropoff_date"><br>
+<label>وقت الوصول    </label><input type="text" id="dropoff_time"><br>
+<label>عدد الركاب</label><input type="text" id="passenger_count"><br>
+<label>السعر</label><input type="text" id="price"><br>
+<label>اسم الزبون</label><input type="text" id="customer_name"><br>
+<label>هاتف الزبون</label><input type="text" id="customer_phone"><br>
+
+<button onclick="sendOrder()">طلب</button>
+
+<script>
+// إعداد Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
+};
+firebase.initializeApp(firebaseConfig);
+
+function sendOrder(){
+  firebase.database().ref("orders").push({
+    pickup_location: document.getElementById("from").value,
+    dropoff_location: document.getElementById("to").value,
+    pickup_date: document.getElementById("pickup_date").value,
+    pickup_time: document.getElementById("pickup_time").value,
+    dropoff_date: document.getElementById("dropoff_date").value,
+    dropoff_time: document.getElementById("dropoff_time").value,
+    passenger_count: document.getElementById("passenger_count").value,
+    price: document.getElementById("price").value,
+    status: "new",
+    customer_name: document.getElementById("customer_name").value,
+    customer_phone: document.getElementById("customer_phone").value,
+    driver_name: "",
+    driver_phone: "",
+    car_type: "",
+    car_number: ""
+  });
+  
+  alert("تم إرسال الطلب ✅");
+  // مسح الحقول بعد الإرسال
+  ["from","to","pickup_date","pickup_time","dropoff_date","dropoff_time","passenger_count","price","customer_name","customer_phone"]
+  .forEach(id => document.getElementById(id).value = "");
+}
+</script>
+</body>
+</html>
