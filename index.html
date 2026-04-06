@@ -8,6 +8,7 @@
 <style>
   body { font-family: Arial; direction: rtl; padding: 20px; }
   li { background: #eee; margin: 5px; padding: 10px; }
+  button { margin-top: 10px; padding: 5px 10px; }
 </style>
 </head>
 <body>
@@ -18,7 +19,7 @@
 <ul id="ridesList"></ul>
 
 <script>
-// 🔥 ضع إعداداتك هنا
+// 🔥 ضع إعدادات Firebase هنا
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -43,7 +44,7 @@ const list = document.getElementById("ridesList");
 
 // 🔥 استماع مباشر (Realtime)
 db.ref("orders").on("value", snapshot => {
-  const data = snapshot.val();
+  const data = snapshot.val() || {};
   list.innerHTML = "";
 
   for(let id in data){
@@ -51,20 +52,33 @@ db.ref("orders").on("value", snapshot => {
 
     const li = document.createElement("li");
     li.textContent = `🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 💰 ${ride.price} | الحالة: ${ride.status}`;
+
+    // زر قبول الطلب
+    const btn = document.createElement("button");
+    btn.textContent = "قبول الطلب ✅";
+    btn.onclick = () => acceptRide(id);
+
+    // أضف الزر إذا الطلب جديد
+    if(ride.status === "new"){
+      li.appendChild(btn);
+    }
+
     list.appendChild(li);
 
-    // 🔊 صوت
-    if(
-      soundEnabled &&
-      !displayedOrders.includes(id) &&
-      ride.status === "new"
-    ){
+    // 🔊 صوت تنبيه للطلبات الجديدة
+    if(soundEnabled && !displayedOrders.includes(id) && ride.status === "new"){
       audio.play();
     }
   }
 
-  displayedOrders = Object.keys(data || {});
+  displayedOrders = Object.keys(data);
 });
+
+// تحديث حالة الطلب إلى accepted
+function acceptRide(orderId){
+  db.ref(`orders/${orderId}/status`).set("accepted");
+  alert("تم قبول الطلب ✅");
+}
 </script>
 
 </body>
