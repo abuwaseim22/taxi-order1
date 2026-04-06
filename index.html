@@ -5,13 +5,21 @@
 <title>طلبات السائق</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<style>
+body { font-family: Arial, sans-serif; background:#f0f4f8; padding:20px; }
+h2 { color:#1f2937; margin-bottom:20px; }
+#ridesList li { margin-bottom:15px; padding:10px; background:#fff; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+button.acceptBtn { padding:8px 12px; border:none; border-radius:8px; background:#16a34a; color:white; cursor:pointer; transition:0.3s; }
+button.acceptBtn:hover { background:#15803d; }
+</style>
 </head>
 <body>
+
 <h2>طلبات التاكسي (Realtime)</h2>
 <button onclick="enableSound()">تشغيل الصوت 🔊</button>
 <ul id="ridesList"></ul>
 
-<audio id="bell" src="medium_bell.ogg" preload="auto"></audio>
+<audio id="bell" src="https://raw.githubusercontent.com/abuwaseim22/taxi-app/main/medium_bell.ogg" preload="auto"></audio>
 
 <script>
 const firebaseConfig = {
@@ -36,9 +44,7 @@ function playBellRepeated(times=3, interval=500){
   let timer = setInterval(() => {
     audio.play();
     count++;
-    if(count >= times){
-      clearInterval(timer);
-    }
+    if(count >= times) clearInterval(timer);
   }, interval);
 }
 
@@ -55,16 +61,15 @@ db.ref("orders").on("value", snapshot => {
     const li = document.createElement("li");
     li.innerHTML = `
       🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 💰 ${ride.price} | حالة: ${ride.status} <br>
-      📅 ${ride.pickup_date || ""} ${ride.pickup_time || ""} → ${ride.dropoff_date || ""} ${ride.dropoff_time || ""} <br>
       ركاب: ${ride.passenger_count || ""} | ${ride.customer_name || ""} | ${ride.customer_phone || ""} <br>
       🚗 ${ride.car_type || ""} ${ride.car_number || ""} | سائق: ${ride.driver_name || ""} ${ride.driver_phone || ""}
     `;
 
-    const btn = document.createElement("button");
-    btn.textContent = "قبول الطلب ✅";
-    btn.onclick = () => acceptRide(id);
-
     if(ride.status === "new"){
+      const btn = document.createElement("button");
+      btn.textContent = "قبول الطلب ✅";
+      btn.className = "acceptBtn";
+      btn.onclick = () => acceptRide(id);
       li.appendChild(btn);
     }
 
