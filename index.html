@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <title>طلبات التاكسي</title>
 <style>
-  body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; background-color: #f9f9f9; }
+  body { font-family: Arial; direction: rtl; padding: 20px; background: #f9f9f9; }
   h2 { color: #333; }
-  ul { list-style-type: none; padding: 0; }
+  ul { list-style: none; padding: 0; }
   li { background: #fff; margin: 5px 0; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 </style>
 </head>
@@ -16,25 +16,21 @@
 <ul id="ridesList"></ul>
 
 <script>
-/* ===== ضع هنا بياناتك ===== */
-const API_KEY = "AIzaSyC7EHj5KWGruCOJXeTSiPFxjVvAURFgsNk"; // مفتاح API من Google Cloud
-const SPREADSHEET_ID = "1Od5maCl0lZVw2pvvyUmZNEUrDLIGM2lhGnF1rsIEqdw"; // ID من الرابط اللي شرحناه
-const RANGE = "Sheet1!A:P"; // جميع الأعمدة الأساسية من A إلى P
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQr9v7IDi_DIWqcBN7_syRjUWb6jujjwngnyCquSdZpFGlHD8N4MrBt4sqkfxrU_p-j8CLGaqq_iNR0/pub?gid=0&single=true&output=csv"; // الرابط اللي نشرته من Google Sheet
 
 let displayedOrders = [];
 
 function fetchRides() {
-  fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`)
-    .then(res => res.json())
-    .then(data => {
-      if(!data.values || data.values.length < 2) return;
-
-      const rows = data.values;
+  fetch(CSV_URL)
+    .then(res => res.text())
+    .then(csvText => {
+      const rows = csvText.split("\n").map(r => r.split(","));
       const rides = [];
 
-      // بناء ride object حسب الأعمدة عندك
+      // الأعمدة حسب ترتيبك الفعلي
       for(let i=1; i<rows.length; i++){
         const row = rows[i];
+        if(row.length < 10) continue; // صف فارغ أو ناقص بيانات
         const ride = {
           order_id: row[0],
           pickup_location: row[1],
@@ -43,9 +39,9 @@ function fetchRides() {
           dropoff_location: row[4],
           dropoff_date: row[5],
           dropoff_time: row[6],
-          passenger_count: row[7], // Passenger_cont
-          price: row[8], // Price
-          status: row[9], // Status
+          passenger_count: row[7],
+          price: row[8],
+          status: row[9],
           Customer_name: row[10],
           Customer_phone: row[11],
           driver_name: row[12],
@@ -57,7 +53,8 @@ function fetchRides() {
       }
 
       renderRides(rides);
-    }).catch(err => console.error("Error fetching rides:", err));
+    })
+    .catch(err => console.error("Error fetching CSV:", err));
 }
 
 const list = document.getElementById("ridesList");
@@ -70,7 +67,7 @@ function renderRides(rides) {
     list.appendChild(li);
 
     // صوت عند الطلب الجديد
-    if(!displayedOrders.includes(ride.order_id) && ride.status === "new"){
+    if(!displayedOrders.includes(ride.order_id) && ride.status.toLowerCase() === "new"){
       const msg = new SpeechSynthesisUtterance(`يوجد طلب جديد من ${ride.pickup_location} إلى ${ride.dropoff_location}`);
       window.speechSynthesis.speak(msg);
     }
