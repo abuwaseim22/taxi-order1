@@ -24,7 +24,7 @@
   const list = document.getElementById("ridesList");
 
   function renderRides() {
-    list.innerHTML = ""; // امسح القديم
+    list.innerHTML = ""; // مسح الطلبات القديمة
     rides.forEach(ride => {
       const li = document.createElement("li");
       li.textContent = `🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 👥 ${ride.passenger_count} | 💰 ${ride.price} | الحالة: ${ride.status}`;
@@ -41,14 +41,6 @@
   // عرض الطلبات أول مرة
   renderRides();
 
-  // تحديث تلقائي كل 3 ثواني (للتجربة سنضيف طلب جديد بعد 6 ثواني)
+  // تحديث تلقائي كل 6 ثواني للتجربة (إضافة طلب جديد)
   setInterval(() => {
-    // مثال: إضافة طلب جديد للتجربة
-    rides.push({ order_id: "order_" + Date.now(), pickup_location: "مادبا", dropoff_location: "البتراء", passenger_count: 1, price: 20, status: "new" });
-    renderRides();
-  }, 6000);
-
-</script>
-
-</body>
-</html>
+    rides.push({ order_id: "order_" + Date.now(), pickup_location: "مادبا", dropoff_location
