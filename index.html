@@ -13,30 +13,18 @@ body {
   background: #f0f4f8;
   padding: 20px;
 }
-
-h2 {
-  color: #1f2937;
-}
-
 .card {
   background: white;
   padding: 15px;
   margin-bottom: 15px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  border-radius: 10px;
 }
-
-.btn {
+button {
   padding: 8px 12px;
-  background: #16a34a;
+  background: green;
   color: white;
   border: none;
   border-radius: 8px;
-  cursor: pointer;
-}
-
-.btn:hover {
-  background: #15803d;
 }
 </style>
 
@@ -44,8 +32,7 @@ h2 {
 <body>
 
 <h2>طلبات التاكسي 🚕</h2>
-
-<div id="ridesList"></div>
+<div id="list"></div>
 
 <script>
 const firebaseConfig = {
@@ -57,49 +44,39 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 const db = firebase.database();
-const list = document.getElementById("ridesList");
+const list = document.getElementById("list");
 
-// 🔄 جلب الطلبات realtime
-db.ref("orders").on("value", snapshot => {
-  const data = snapshot.val() || {};
+db.ref("orders").on("value", snap => {
   list.innerHTML = "";
+  let data = snap.val() || {};
 
   for(let id in data){
-    const ride = data[id];
+    let r = data[id];
 
-    const div = document.createElement("div");
+    let div = document.createElement("div");
     div.className = "card";
 
     div.innerHTML = `
-      🚕 <b>من:</b> ${ride.pickup_location} → <b>إلى:</b> ${ride.dropoff_location} <br><br>
-
-      📅 <b>التاريخ:</b> ${ride.pickup_date || "-"} <br>
-      ⏰ <b>الوقت:</b> ${ride.pickup_time || "-"} <br><br>
-
-      👥 <b>عدد الركاب:</b> ${ride.passenger_count} <br>
-      💰 <b>السعر:</b> ${ride.price} دينار <br><br>
-
-      📌 <b>الحالة:</b> ${ride.status}
+      🚕 ${r.pickup_location} → ${r.dropoff_location}<br>
+      📅 ${r.pickup_date} ⏰ ${r.pickup_time}<br>
+      👥 ${r.passenger_count} ركاب<br>
+      💰 ${r.price} دينار<br>
+      📌 ${r.status}
     `;
 
-    // زر قبول الطلب
-    if(ride.status === "new"){
-      const btn = document.createElement("button");
-      btn.className = "btn";
-      btn.textContent = "قبول الطلب ✅";
-      btn.onclick = () => acceptRide(id);
+    if(r.status === "new"){
+      let btn = document.createElement("button");
+      btn.innerText = "قبول";
+      btn.onclick = () => {
+        db.ref("orders/" + id + "/status").set("accepted");
+        alert("تم القبول");
+      };
       div.appendChild(btn);
     }
 
     list.appendChild(div);
   }
 });
-
-// ✅ قبول الطلب
-function acceptRide(orderId){
-  db.ref("orders/" + orderId + "/status").set("accepted");
-  alert("تم قبول الطلب ✅");
-}
 </script>
 
 </body>

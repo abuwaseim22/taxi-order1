@@ -11,36 +11,24 @@ body {
   padding: 20px;
   text-align: center;
 }
-
 h2 { color: #1f2937; }
-
 input {
   padding: 10px;
   margin: 10px;
   width: 250px;
   border-radius: 8px;
   border: 1px solid #ccc;
-  font-size: 16px;
 }
-
 button {
   padding: 12px 20px;
   background: #2563eb;
   color: white;
   border: none;
   border-radius: 10px;
-  font-size: 18px;
-  cursor: pointer;
 }
-
-button:hover {
-  background: #1d4ed8;
-}
-
 #price {
   font-size: 20px;
   font-weight: bold;
-  margin-top: 15px;
 }
 </style>
 
@@ -51,10 +39,8 @@ button:hover {
 
 <input id="from" placeholder="من أين؟"><br>
 <input id="to" placeholder="إلى أين؟"><br>
-
 <input id="date" type="date"><br>
 <input id="time" type="time"><br>
-
 <input id="passengers" type="number" placeholder="عدد الركاب"><br>
 
 <div id="price">السعر: 0 دينار</div>
@@ -81,106 +67,23 @@ const timeInput = document.getElementById("time");
 const passengersInput = document.getElementById("passengers");
 const priceLabel = document.getElementById("price");
 
-// 🔥 حساب السعر
+// السعر
 function getPrice(from, to) {
-  from = from.trim();
-  to = to.trim();
-
   if ((from === "عمان" && to === "اربد") || (from === "اربد" && to === "عمان")) return 5;
   if ((from === "عمان" && to === "الزرقاء") || (from === "الزرقاء" && to === "عمان")) return 2.5;
   if ((from === "عمان" && to === "المفرق") || (from === "المفرق" && to === "عمان")) return 3;
   if ((from === "اربد" && to === "المفرق") || (from === "المفرق" && to === "اربد")) return 2.5;
   if ((from === "اربد" && to === "الزرقاء") || (from === "الزرقاء" && to === "اربد")) return 3;
   if ((from === "المفرق" && to === "الزرقاء") || (from === "الزرقاء" && to === "المفرق")) return 2.5;
-
   return 0;
 }
 
 // تحديث السعر
 function updatePrice() {
-  let basePrice = getPrice(fromInput.value, toInput.value);
-  let passengers = Number(passengersInput.value) || 1;
-  let total = basePrice * passengers;
-
-  priceLabel.innerText = "السعر: " + total + " دينار";
+  let base = getPrice(fromInput.value, toInput.value);
+  let p = Number(passengersInput.value) || 1;
+  priceLabel.innerText = "السعر: " + (base * p) + " دينار";
 }
 
-fromInput.addEventListener("input", updatePrice);
-toInput.addEventListener("input", updatePrice);
-passengersInput.addEventListener("input", updatePrice);
-
-// 🚀 الحجز
-function bookRide() {
-  const from = fromInput.value.trim();
-  const to = toInput.value.trim();
-  const date = dateInput.value;
-  const time = timeInput.value;
-  const passengers = Number(passengersInput.value);
-
-  // 🔴 تحقق من الحقول
-  if (!from) {
-    alert("يرجى إدخال مكان الانطلاق");
-    return;
-  }
-
-  if (!to) {
-    alert("يرجى إدخال الوجهة");
-    return;
-  }
-
-  if (!date) {
-    alert("يرجى اختيار تاريخ الانطلاق");
-    return;
-  }
-
-  if (!time) {
-    alert("يرجى اختيار وقت الانطلاق");
-    return;
-  }
-
-  if (!passengers || passengers <= 0) {
-    alert("يرجى إدخال عدد الركاب");
-    return;
-  }
-
-  const basePrice = getPrice(from, to);
-
-  if(basePrice === 0){
-    alert("المدن غير مدعومة");
-    return;
-  }
-
-  const total = basePrice * passengers;
-  const orderId = "order" + Date.now();
-
-  db.ref("orders/" + orderId).set({
-    pickup_location: from,
-    dropoff_location: to,
-    pickup_date: date,
-    pickup_time: time,
-    passenger_count: passengers,
-    price: total,
-    status: "new",
-    customer_name: "",
-    customer_phone: "",
-    driver_name: "",
-    driver_phone: "",
-    car_type: "",
-    car_number: ""
-  });
-
-  alert("تم الحجز بنجاح 🚕\nالسعر: " + total + " دينار");
-
-  priceLabel.innerText = "السعر: " + total + " دينار";
-
-  // تفريغ
-  fromInput.value = "";
-  toInput.value = "";
-  dateInput.value = "";
-  timeInput.value = "";
-  passengersInput.value = "";
-}
-</script>
-
-</body>
-</html>
+fromInput.oninput = updatePrice;
+toInput.oninput = updatePrice;
