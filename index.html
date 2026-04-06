@@ -2,24 +2,67 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>طلبات السائق</title>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<title>طلب تاكسي</title>
+
 <style>
-body { font-family: Arial, sans-serif; background:#f0f4f8; padding:20px; }
-h2 { color:#1f2937; margin-bottom:20px; }
-#ridesList li { margin-bottom:15px; padding:10px; background:#fff; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
-button.acceptBtn { padding:8px 12px; border:none; border-radius:8px; background:#16a34a; color:white; cursor:pointer; transition:0.3s; }
-button.acceptBtn:hover { background:#15803d; }
+body {
+  font-family: Arial;
+  background: #f0f4f8;
+  padding: 20px;
+  text-align: center;
+}
+
+h2 { color: #1f2937; }
+
+input {
+  padding: 10px;
+  margin: 10px;
+  width: 250px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+button {
+  padding: 12px 20px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+#price {
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 15px;
+}
 </style>
+
 </head>
 <body>
 
-<h2>طلبات التاكسي (Realtime)</h2>
-<button onclick="enableSound()">تشغيل الصوت 🔊</button>
-<ul id="ridesList"></ul>
+<h2>طلب تاكسي 🚕</h2>
 
-<audio id="bell" src="https://raw.githubusercontent.com/abuwaseim22/taxi-app/main/medium_bell.ogg" preload="auto"></audio>
+<input id="from" placeholder="من أين؟"><br>
+<input id="to" placeholder="إلى أين؟"><br>
+
+<input id="date" type="date"><br>
+<input id="time" type="time"><br>
+
+<input id="passengers" type="number" placeholder="عدد الركاب"><br>
+
+<div id="price">السعر: 0 دينار</div>
+
+<button onclick="bookRide()">طلب</button>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
 const firebaseConfig = {
@@ -29,64 +72,115 @@ const firebaseConfig = {
   projectId: "abuwaseim-1e6a5"
 };
 firebase.initializeApp(firebaseConfig);
-
-let soundEnabled = false;
-let displayedOrders = [];
-let audio = document.getElementById("bell");
-
-function enableSound(){
-  soundEnabled = true;
-  alert("تم تفعيل الصوت 🔊");
-}
-
-function playBellRepeated(times=3, interval=500){
-  let count = 0;
-  let timer = setInterval(() => {
-    audio.play();
-    count++;
-    if(count >= times) clearInterval(timer);
-  }, interval);
-}
-
 const db = firebase.database();
-const list = document.getElementById("ridesList");
 
-db.ref("orders").on("value", snapshot => {
-  const data = snapshot.val() || {};
-  list.innerHTML = "";
+const fromInput = document.getElementById("from");
+const toInput = document.getElementById("to");
+const dateInput = document.getElementById("date");
+const timeInput = document.getElementById("time");
+const passengersInput = document.getElementById("passengers");
+const priceLabel = document.getElementById("price");
 
-  for(let id in data){
-    const ride = data[id];
+// 🔥 حساب السعر
+function getPrice(from, to) {
+  from = from.trim();
+  to = to.trim();
 
-    const li = document.createElement("li");
-    li.innerHTML = `
-      🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 💰 ${ride.price} | حالة: ${ride.status} <br>
-      ركاب: ${ride.passenger_count || ""} | ${ride.customer_name || ""} | ${ride.customer_phone || ""} <br>
-      🚗 ${ride.car_type || ""} ${ride.car_number || ""} | سائق: ${ride.driver_name || ""} ${ride.driver_phone || ""}
-    `;
+  if ((from === "عمان" && to === "اربد") || (from === "اربد" && to === "عمان")) return 5;
+  if ((from === "عمان" && to === "الزرقاء") || (from === "الزرقاء" && to === "عمان")) return 2.5;
+  if ((from === "عمان" && to === "المفرق") || (from === "المفرق" && to === "عمان")) return 3;
+  if ((from === "اربد" && to === "المفرق") || (from === "المفرق" && to === "اربد")) return 2.5;
+  if ((from === "اربد" && to === "الزرقاء") || (from === "الزرقاء" && to === "اربد")) return 3;
+  if ((from === "المفرق" && to === "الزرقاء") || (from === "الزرقاء" && to === "المفرق")) return 2.5;
 
-    if(ride.status === "new"){
-      const btn = document.createElement("button");
-      btn.textContent = "قبول الطلب ✅";
-      btn.className = "acceptBtn";
-      btn.onclick = () => acceptRide(id);
-      li.appendChild(btn);
-    }
+  return 0;
+}
 
-    list.appendChild(li);
+// تحديث السعر
+function updatePrice() {
+  let basePrice = getPrice(fromInput.value, toInput.value);
+  let passengers = Number(passengersInput.value) || 1;
+  let total = basePrice * passengers;
 
-    if(soundEnabled && !displayedOrders.includes(id) && ride.status === "new"){
-      playBellRepeated();
-    }
+  priceLabel.innerText = "السعر: " + total + " دينار";
+}
+
+fromInput.addEventListener("input", updatePrice);
+toInput.addEventListener("input", updatePrice);
+passengersInput.addEventListener("input", updatePrice);
+
+// 🚀 الحجز
+function bookRide() {
+  const from = fromInput.value.trim();
+  const to = toInput.value.trim();
+  const date = dateInput.value;
+  const time = timeInput.value;
+  const passengers = Number(passengersInput.value);
+
+  // 🔴 تحقق من الحقول
+  if (!from) {
+    alert("يرجى إدخال مكان الانطلاق");
+    return;
   }
 
-  displayedOrders = Object.keys(data);
-});
+  if (!to) {
+    alert("يرجى إدخال الوجهة");
+    return;
+  }
 
-function acceptRide(orderId){
-  db.ref(`orders/${orderId}/status`).set("accepted");
-  alert("تم قبول الطلب ✅");
+  if (!date) {
+    alert("يرجى اختيار تاريخ الانطلاق");
+    return;
+  }
+
+  if (!time) {
+    alert("يرجى اختيار وقت الانطلاق");
+    return;
+  }
+
+  if (!passengers || passengers <= 0) {
+    alert("يرجى إدخال عدد الركاب");
+    return;
+  }
+
+  const basePrice = getPrice(from, to);
+
+  if(basePrice === 0){
+    alert("المدن غير مدعومة");
+    return;
+  }
+
+  const total = basePrice * passengers;
+  const orderId = "order" + Date.now();
+
+  db.ref("orders/" + orderId).set({
+    pickup_location: from,
+    dropoff_location: to,
+    pickup_date: date,
+    pickup_time: time,
+    passenger_count: passengers,
+    price: total,
+    status: "new",
+    customer_name: "",
+    customer_phone: "",
+    driver_name: "",
+    driver_phone: "",
+    car_type: "",
+    car_number: ""
+  });
+
+  alert("تم الحجز بنجاح 🚕\nالسعر: " + total + " دينار");
+
+  priceLabel.innerText = "السعر: " + total + " دينار";
+
+  // تفريغ
+  fromInput.value = "";
+  toInput.value = "";
+  dateInput.value = "";
+  timeInput.value = "";
+  passengersInput.value = "";
 }
 </script>
+
 </body>
 </html>
