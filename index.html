@@ -1,58 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>طلبات السائق</title>
+<title>طلبات التاكسي</title>
 <style>
-body { font-family: Arial; background: #f5f5f5; padding: 10px; }
-.request { background: #fff; margin: 5px 0; padding: 10px; border-radius: 5px; }
-button { margin-right: 5px; padding: 5px 10px; }
+  body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; background-color: #f9f9f9; }
+  h2 { color: #333; }
+  ul { list-style-type: none; padding: 0; }
+  li { background: #fff; margin: 5px 0; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 </style>
 </head>
 <body>
 
-<h2>طلبات جديدة</h2>
-<div id="requests"></div>
-
-<audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+<h2>طلبات التاكسي</h2>
+<ul id="ridesList"></ul>
 
 <script>
-const sheetID = "PUT_YOUR_GOOGLE_SHEET_ID_HERE"; // ضع هنا Sheet ID
-const sheetName = "TaxiRides";
-let seenOrders = [];
+  // بيانات تجريبية للتجربة
+  let rides = [
+    { order_id: "order_12345", pickup_location: "عمان", dropoff_location: "الزرقاء", passenger_count: 2, price: 15, status: "new" }
+  ];
 
-function fetchRequests() {
-  fetch(`https://opensheet.elk.sh/${sheetID}/${sheetName}`)
-  .then(response => response.json())
-  .then(data => {
-    const container = document.getElementById("requests");
-    container.innerHTML = "";
+  const list = document.getElementById("ridesList");
 
-    data.forEach(row => {
-      if(row.status === "new" && !seenOrders.includes(row.order_id)) {
-        seenOrders.push(row.order_id);
-        // تشغيل صوت التنبيه
-        document.getElementById("alertSound").play();
-      }
+  function renderRides() {
+    list.innerHTML = ""; // امسح القديم
+    rides.forEach(ride => {
+      const li = document.createElement("li");
+      li.textContent = `🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 👥 ${ride.passenger_count} | 💰 ${ride.price} | الحالة: ${ride.status}`;
+      list.appendChild(li);
 
-      if(row.status === "new") {
-        const div = document.createElement("div");
-        div.className = "request";
-        div.innerHTML = `
-          🚕 من: ${row.pickup_location} | إلى: ${row.dropoff_location} | 👥 ${row.passenger_count} | 💰 ${row.price}
-          <br>
-          <button onclick="alert('اضغط قبول في Thunkable')">قبول</button>
-          <button onclick="alert('اضغط رفض في Thunkable')">رفض</button>
-        `;
-        container.appendChild(div);
+      // تنبيه صوتي عند الطلب الجديد
+      if (ride.status === "new") {
+        const msg = new SpeechSynthesisUtterance(`يوجد طلب جديد من ${ride.pickup_location} إلى ${ride.dropoff_location}`);
+        window.speechSynthesis.speak(msg);
       }
     });
-  });
-}
+  }
 
-// جلب الطلبات كل 3 ثواني
-fetchRequests();
-setInterval(fetchRequests, 3000);
+  // عرض الطلبات أول مرة
+  renderRides();
+
+  // تحديث تلقائي كل 3 ثواني (للتجربة سنضيف طلب جديد بعد 6 ثواني)
+  setInterval(() => {
+    // مثال: إضافة طلب جديد للتجربة
+    rides.push({ order_id: "order_" + Date.now(), pickup_location: "مادبا", dropoff_location: "البتراء", passenger_count: 1, price: 20, status: "new" });
+    renderRides();
+  }, 6000);
+
 </script>
 
 </body>
