@@ -2,67 +2,50 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>طلب تاكسي</title>
+<title>طلبات السائق</title>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
 body {
   font-family: Arial;
   background: #f0f4f8;
   padding: 20px;
-  text-align: center;
 }
 
-h2 { color: #1f2937; }
-
-input {
-  padding: 10px;
-  margin: 10px;
-  width: 250px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 16px;
+h2 {
+  color: #1f2937;
 }
 
-button {
-  padding: 12px 20px;
-  background: #2563eb;
+.card {
+  background: white;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.btn {
+  padding: 8px 12px;
+  background: #16a34a;
   color: white;
   border: none;
-  border-radius: 10px;
-  font-size: 18px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
-button:hover {
-  background: #1d4ed8;
-}
-
-#price {
-  font-size: 20px;
-  font-weight: bold;
-  margin-top: 15px;
+.btn:hover {
+  background: #15803d;
 }
 </style>
 
 </head>
 <body>
 
-<h2>طلب تاكسي 🚕</h2>
+<h2>طلبات التاكسي 🚕</h2>
 
-<input id="from" placeholder="من أين؟"><br>
-<input id="to" placeholder="إلى أين؟"><br>
-
-<input id="date" type="date"><br>
-<input id="time" type="time"><br>
-
-<input id="passengers" type="number" placeholder="عدد الركاب"><br>
-
-<div id="price">السعر: 0 دينار</div>
-
-<button onclick="bookRide()">طلب</button>
-
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<div id="ridesList"></div>
 
 <script>
 const firebaseConfig = {
@@ -72,113 +55,50 @@ const firebaseConfig = {
   projectId: "abuwaseim-1e6a5"
 };
 firebase.initializeApp(firebaseConfig);
+
 const db = firebase.database();
+const list = document.getElementById("ridesList");
 
-const fromInput = document.getElementById("from");
-const toInput = document.getElementById("to");
-const dateInput = document.getElementById("date");
-const timeInput = document.getElementById("time");
-const passengersInput = document.getElementById("passengers");
-const priceLabel = document.getElementById("price");
+// 🔄 جلب الطلبات realtime
+db.ref("orders").on("value", snapshot => {
+  const data = snapshot.val() || {};
+  list.innerHTML = "";
 
-// 🔥 حساب السعر
-function getPrice(from, to) {
-  from = from.trim();
-  to = to.trim();
+  for(let id in data){
+    const ride = data[id];
 
-  if ((from === "عمان" && to === "اربد") || (from === "اربد" && to === "عمان")) return 5;
-  if ((from === "عمان" && to === "الزرقاء") || (from === "الزرقاء" && to === "عمان")) return 2.5;
-  if ((from === "عمان" && to === "المفرق") || (from === "المفرق" && to === "عمان")) return 3;
-  if ((from === "اربد" && to === "المفرق") || (from === "المفرق" && to === "اربد")) return 2.5;
-  if ((from === "اربد" && to === "الزرقاء") || (from === "الزرقاء" && to === "اربد")) return 3;
-  if ((from === "المفرق" && to === "الزرقاء") || (from === "الزرقاء" && to === "المفرق")) return 2.5;
+    const div = document.createElement("div");
+    div.className = "card";
 
-  return 0;
-}
+    div.innerHTML = `
+      🚕 <b>من:</b> ${ride.pickup_location} → <b>إلى:</b> ${ride.dropoff_location} <br><br>
 
-// تحديث السعر
-function updatePrice() {
-  let basePrice = getPrice(fromInput.value, toInput.value);
-  let passengers = Number(passengersInput.value) || 1;
-  let total = basePrice * passengers;
+      📅 <b>التاريخ:</b> ${ride.pickup_date || "-"} <br>
+      ⏰ <b>الوقت:</b> ${ride.pickup_time || "-"} <br><br>
 
-  priceLabel.innerText = "السعر: " + total + " دينار";
-}
+      👥 <b>عدد الركاب:</b> ${ride.passenger_count} <br>
+      💰 <b>السعر:</b> ${ride.price} دينار <br><br>
 
-fromInput.addEventListener("input", updatePrice);
-toInput.addEventListener("input", updatePrice);
-passengersInput.addEventListener("input", updatePrice);
+      📌 <b>الحالة:</b> ${ride.status}
+    `;
 
-// 🚀 الحجز
-function bookRide() {
-  const from = fromInput.value.trim();
-  const to = toInput.value.trim();
-  const date = dateInput.value;
-  const time = timeInput.value;
-  const passengers = Number(passengersInput.value);
+    // زر قبول الطلب
+    if(ride.status === "new"){
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = "قبول الطلب ✅";
+      btn.onclick = () => acceptRide(id);
+      div.appendChild(btn);
+    }
 
-  // 🔴 تحقق من الحقول
-  if (!from) {
-    alert("يرجى إدخال مكان الانطلاق");
-    return;
+    list.appendChild(div);
   }
+});
 
-  if (!to) {
-    alert("يرجى إدخال الوجهة");
-    return;
-  }
-
-  if (!date) {
-    alert("يرجى اختيار تاريخ الانطلاق");
-    return;
-  }
-
-  if (!time) {
-    alert("يرجى اختيار وقت الانطلاق");
-    return;
-  }
-
-  if (!passengers || passengers <= 0) {
-    alert("يرجى إدخال عدد الركاب");
-    return;
-  }
-
-  const basePrice = getPrice(from, to);
-
-  if(basePrice === 0){
-    alert("المدن غير مدعومة");
-    return;
-  }
-
-  const total = basePrice * passengers;
-  const orderId = "order" + Date.now();
-
-  db.ref("orders/" + orderId).set({
-    pickup_location: from,
-    dropoff_location: to,
-    pickup_date: date,
-    pickup_time: time,
-    passenger_count: passengers,
-    price: total,
-    status: "new",
-    customer_name: "",
-    customer_phone: "",
-    driver_name: "",
-    driver_phone: "",
-    car_type: "",
-    car_number: ""
-  });
-
-  alert("تم الحجز بنجاح 🚕\nالسعر: " + total + " دينار");
-
-  priceLabel.innerText = "السعر: " + total + " دينار";
-
-  // تفريغ
-  fromInput.value = "";
-  toInput.value = "";
-  dateInput.value = "";
-  timeInput.value = "";
-  passengersInput.value = "";
+// ✅ قبول الطلب
+function acceptRide(orderId){
+  db.ref("orders/" + orderId + "/status").set("accepted");
+  alert("تم قبول الطلب ✅");
 }
 </script>
 
