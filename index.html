@@ -16,31 +16,53 @@
 <ul id="ridesList"></ul>
 
 <script>
-  // بيانات تجريبية للتجربة
-  let rides = [
-    { order_id: "order_12345", pickup_location: "عمان", dropoff_location: "الزرقاء", passenger_count: 2, price: 15, status: "new" }
-  ];
+const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQr9v7IDi_DIWqcBN7_syRjUWb6jujjwngnyCquSdZpFGlHD8N4MrBt4sqkfxrU_p-j8CLGaqq_iNR0/pubhtml?gid=0&single=true"; // ضع هنا رابط CSV الناتج من Google Sheet
 
-  const list = document.getElementById("ridesList");
+let displayedOrders = [];
 
-  function renderRides() {
-    list.innerHTML = ""; // مسح الطلبات القديمة
-    rides.forEach(ride => {
-      const li = document.createElement("li");
-      li.textContent = `🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 👥 ${ride.passenger_count} | 💰 ${ride.price} | الحالة: ${ride.status}`;
-      list.appendChild(li);
-
-      // تنبيه صوتي عند الطلب الجديد
-      if (ride.status === "new") {
-        const msg = new SpeechSynthesisUtterance(`يوجد طلب جديد من ${ride.pickup_location} إلى ${ride.dropoff_location}`);
-        window.speechSynthesis.speak(msg);
+function fetchRides() {
+  fetch(sheetUrl)
+    .then(res => res.text())
+    .then(data => {
+      const rows = data.split("\n");
+      const headers = rows[0].split(",");
+      const rides = [];
+      for(let i=1; i<rows.length; i++){
+        if(!rows[i]) continue;
+        const cols = rows[i].split(",");
+        const ride = {};
+        headers.forEach((h,j)=> ride[h.trim()] = cols[j].trim());
+        rides.push(ride);
       }
+      renderRides(rides);
     });
-  }
+}
 
-  // عرض الطلبات أول مرة
-  renderRides();
+const list = document.getElementById("ridesList");
 
-  // تحديث تلقائي كل 6 ثواني للتجربة (إضافة طلب جديد)
-  setInterval(() => {
-    rides.push({ order_id: "order_" + Date.now(), pickup_location: "مادبا", dropoff_location
+function renderRides(rides) {
+  list.innerHTML = "";
+  rides.forEach(ride => {
+    const li = document.createElement("li");
+    li.textContent = `🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 👥 ${ride.passenger_count} | 💰 ${ride.price} | الحالة: ${ride.status}`;
+    list.appendChild(li);
+
+    // صوت عند الطلب الجديد
+    if(!displayedOrders.includes(ride.order_id) && ride.status === "new"){
+      const msg = new SpeechSynthesisUtterance(`يوجد طلب جديد من ${ride.pickup_location} إلى ${ride.dropoff_location}`);
+      window.speechSynthesis.speak(msg);
+    }
+  });
+
+  displayedOrders = rides.map(r => r.order_id);
+}
+
+// تحديث كل 6 ثواني
+setInterval(fetchRides, 6000);
+
+// أول مرة
+fetchRides();
+</script>
+
+</body>
+</html>
