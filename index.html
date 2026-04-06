@@ -1,101 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>طلبات السائق</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f4f4f4;
-    }
-    #ordersContainer {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .order {
-      background: #fff;
-      padding: 15px;
-      border-left: 5px solid #007bff;
-      border-radius: 5px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      transition: background 0.5s;
-    }
-    .order.new-flash {
-      background: #fffae6;
-      border-left-color: #ffc107;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>طلبات السائق</title>
+<style>
+body { font-family: Arial; background: #f5f5f5; padding: 10px; }
+.request { background: #fff; margin: 5px 0; padding: 10px; border-radius: 5px; }
+button { margin-right: 5px; padding: 5px 10px; }
+</style>
 </head>
 <body>
 
-<h2>الطلبات الجديدة</h2>
-<div id="ordersContainer"></div>
+<h2>طلبات جديدة</h2>
+<div id="requests"></div>
 
-<!-- صوت التنبيه -->
-<audio id="alertSound" src="https://www.myinstants.com/media/sounds/bleep.mp3" preload="auto"></audio>
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-  // ضع هنا إعدادات Firebase الخاصة بمشروعك
-  const firebaseConfig = {
-    apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
-    authDomain: "abuwaseim-1e6a5.firebaseapp.com",
-    databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com/",
-     projectId: "abuwaseim-1e6a5",
-    storageBucket: "abuwaseim-1e6a5.firebasestorage.app",
-    messagingSenderId: "742009233210",
-    appId: "1:742009233210:web:bbc875db2ece8db7ea3a03"
-  };
-  firebase.initializeApp(firebaseConfig);
+const sheetID = "PUT_YOUR_GOOGLE_SHEET_ID_HERE"; // ضع هنا Sheet ID
+const sheetName = "TaxiRides";
+let seenOrders = [];
 
-  const db = firebase.database().ref("orders");
-  let lastTimestamp = 0;
+function fetchRequests() {
+  fetch(`https://opensheet.elk.sh/${sheetID}/${sheetName}`)
+  .then(response => response.json())
+  .then(data => {
+    const container = document.getElementById("requests");
+    container.innerHTML = "";
 
-  // تابع أي طلب جديد يضاف → يضيف timestamp تلقائي
-  db.on("child_added", snapshot => {
-    const order = snapshot.val();
-    if(!order.timestamp) {
-      snapshot.ref.update({ timestamp: Date.now() });
-    }
-  });
+    data.forEach(row => {
+      if(row.status === "new" && !seenOrders.includes(row.order_id)) {
+        seenOrders.push(row.order_id);
+        // تشغيل صوت التنبيه
+        document.getElementById("alertSound").play();
+      }
 
-  // دالة لعرض الطلب وتحويل الحالة
-  function showOrder(snapshot) {
-    const order = snapshot.val();
-    const container = document.getElementById("ordersContainer");
-    const div = document.createElement("div");
-    div.className = "order new-flash";
-    div.innerHTML = `
-      <b>Customer:</b> ${order.customer} <br>
-      <b>From:</b> ${order.from} <br>
-      <b>To:</b> ${order.to} <br>
-      <b>Status:</b> ${order.status}
-    `;
-    container.prepend(div);
-
-    // صوت + تأثير بصري
-    document.getElementById("alertSound").play();
-    setTimeout(() => { div.classList.remove("new-flash"); }, 2000);
-
-    // تحويل الحالة من new → seen بعد العرض
-    snapshot.ref.update({ status: "seen" });
-  }
-
-  // تحديث live كل 3 ثواني
-  setInterval(() => {
-    db.orderByChild("timestamp").startAt(lastTimestamp + 1).once("value", snapshot => {
-      snapshot.forEach(childSnapshot => {
-        const order = childSnapshot.val();
-        if(order.status === "new") {
-          showOrder(childSnapshot);
-          if(order.timestamp > lastTimestamp) lastTimestamp = order.timestamp;
-        }
-      });
+      if(row.status === "new") {
+        const div = document.createElement("div");
+        div.className = "request";
+        div.innerHTML = `
+          🚕 من: ${row.pickup_location} | إلى: ${row.dropoff_location} | 👥 ${row.passenger_count} | 💰 ${row.price}
+          <br>
+          <button onclick="alert('اضغط قبول في Thunkable')">قبول</button>
+          <button onclick="alert('اضغط رفض في Thunkable')">رفض</button>
+        `;
+        container.appendChild(div);
+      }
     });
-  }, 3000);
+  });
+}
+
+// جلب الطلبات كل 3 ثواني
+fetchRequests();
+setInterval(fetchRequests, 3000);
 </script>
 
 </body>
