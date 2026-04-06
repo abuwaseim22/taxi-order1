@@ -16,9 +16,10 @@
 <ul id="ridesList"></ul>
 
 <script>
-const API_KEY = "AIzaSyC7EHj5KWGruCOJXeTSiPFxjVvAURFgsNk"; // ضع مفتاحك هنا
-const SPREADSHEET_ID = "1Od5maCl0lZVw2pvvyUmZNEUrDLIGM2lhGnF1rsIEqdw"; // ضع ID الـ Sheet هنا
-const RANGE = "Sheet1!A:F"; // الأعمدة: order_id, pickup_location, dropoff_location, passenger_count, price, status
+/* ===== ضع هنا بياناتك ===== */
+const API_KEY = "AIzaSyC7EHj5KWGruCOJXeTSiPFxjVvAURFgsNk"; // مفتاح API من Google Cloud
+const SPREADSHEET_ID = "1Od5maCl0lZVw2pvvyUmZNEUrDLIGM2lhGnF1rsIEqdw"; // ID من الرابط اللي شرحناه
+const RANGE = "Sheet1!A:P"; // جميع الأعمدة الأساسية من A إلى P
 
 let displayedOrders = [];
 
@@ -27,17 +28,36 @@ function fetchRides() {
     .then(res => res.json())
     .then(data => {
       if(!data.values || data.values.length < 2) return;
+
       const rows = data.values;
-      const headers = rows[0]; // أول صف = العناوين
       const rides = [];
+
+      // بناء ride object حسب الأعمدة عندك
       for(let i=1; i<rows.length; i++){
         const row = rows[i];
-        const ride = {};
-        headers.forEach((h,j) => ride[h.trim()] = row[j] ? row[j].trim() : "");
+        const ride = {
+          order_id: row[0],
+          pickup_location: row[1],
+          Pickup_date: row[2],
+          Pickup_time: row[3],
+          dropoff_location: row[4],
+          dropoff_date: row[5],
+          dropoff_time: row[6],
+          passenger_count: row[7], // Passenger_cont
+          price: row[8], // Price
+          status: row[9], // Status
+          Customer_name: row[10],
+          Customer_phone: row[11],
+          driver_name: row[12],
+          driver_phone: row[13],
+          car_type: row[14],
+          car_number: row[15]
+        };
         rides.push(ride);
       }
+
       renderRides(rides);
-    });
+    }).catch(err => console.error("Error fetching rides:", err));
 }
 
 const list = document.getElementById("ridesList");
@@ -58,7 +78,7 @@ function renderRides(rides) {
   displayedOrders = rides.map(r => r.order_id);
 }
 
-// تحديث كل 6 ثواني
+// تحديث تلقائي كل 6 ثواني
 setInterval(fetchRides, 6000);
 
 // أول مرة
