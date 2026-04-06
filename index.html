@@ -3,92 +3,69 @@
 <head>
 <meta charset="UTF-8">
 <title>طلبات التاكسي</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 <style>
-  body { font-family: Arial; direction: rtl; padding: 20px; background: #f9f9f9; }
-  h2 { color: #333; }
-  ul { list-style: none; padding: 0; }
-  li { background: #fff; margin: 5px 0; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-  button { padding: 10px; margin-bottom: 10px; }
+  body { font-family: Arial; direction: rtl; padding: 20px; }
+  li { background: #eee; margin: 5px; padding: 10px; }
 </style>
 </head>
 <body>
 
-<h2>طلبات التاكسي</h2>
-
+<h2>طلبات التاكسي (Realtime)</h2>
 <button onclick="enableSound()">تشغيل الصوت 🔊</button>
 
 <ul id="ridesList"></ul>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQr9v7IDi_DIWqcBN7_syRjUWb6jujjwngnyCquSdZpFGlHD8N4MrBt4sqkfxrU_p-j8CLGaqq_iNR0/pub?gid=0&single=true&output=csv";
+// 🔥 ضع إعداداتك هنا
+const firebaseConfig = {
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
+};
 
-let displayedOrders = [];
+firebase.initializeApp(firebaseConfig);
+
 let soundEnabled = false;
+let displayedOrders = [];
 
-// 🔊 صوت حقيقي
 let audio = new Audio("https://www.soundjay.com/buttons/sounds/beep-01a.mp3");
 
-// تفعيل الصوت
 function enableSound() {
   soundEnabled = true;
-  alert("تم تفعيل الصوت ✅");
+  alert("تم تفعيل الصوت");
 }
 
-// جلب البيانات
-function fetchRides() {
-  fetch(CSV_URL + "&t=" + new Date().getTime()) // منع الكاش
-    .then(res => res.text())
-    .then(csvText => {
-      const rows = csvText.split("\n").map(r => r.split(","));
-      const rides = [];
-
-      for(let i=1; i<rows.length; i++){
-        const row = rows[i];
-        if(row.length < 10) continue;
-
-        const ride = {
-          order_id: row[0],
-          pickup_location: row[1],
-          Pickup_date: row[2],
-          Pickup_time: row[3],
-          dropoff_location: row[4],
-          dropoff_date: row[5],
-          dropoff_time: row[6],
-          passenger_count: row[7],
-          price: row[8],
-          status: row[9]
-        };
-
-        rides.push(ride);
-      }
-
-      renderRides(rides);
-    })
-    .catch(err => console.log("Error:", err));
-}
-
+const db = firebase.database();
 const list = document.getElementById("ridesList");
 
-// عرض الطلبات
-function renderRides(rides) {
+// 🔥 استماع مباشر (Realtime)
+db.ref("orders").on("value", snapshot => {
+  const data = snapshot.val();
   list.innerHTML = "";
 
-  rides.forEach(ride => {
+  for(let id in data){
+    const ride = data[id];
+
     const li = document.createElement("li");
-
-    li.textContent = `🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 👥 ${ride.passenger_count} | 💰 ${ride.price} | الحالة: ${ride.status}`;
-
+    li.textContent = `🚕 من: ${ride.pickup_location} | إلى: ${ride.dropoff_location} | 💰 ${ride.price} | الحالة: ${ride.status}`;
     list.appendChild(li);
 
-    // 🔊 صوت عند الطلب الجديد
+    // 🔊 صوت
     if(
       soundEnabled &&
-      !displayedOrders.includes(ride.order_id) &&
-      ride.status &&
-      ride.status.toLowerCase() === "new"
+      !displayedOrders.includes(id) &&
+      ride.status === "new"
     ){
       audio.play();
     }
-  });
+  }
 
-  displayed
+  displayedOrders = Object.keys(data || {});
+});
+</script>
+
+</body>
+</html>
