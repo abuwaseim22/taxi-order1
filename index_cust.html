@@ -1,13 +1,108 @@
-document.getElementById("bookRideBtn").onclick = () => {
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Taxi App</title>
 
-  let from = document.getElementById("from").value;
-  let to = document.getElementById("to").value;
-  let name = document.getElementById("name").value;
-  let p = Number(document.getElementById("passengers").value);
-  let date = document.getElementById("date").value;
-  let time = document.getElementById("time").value;
+<style>
+body { font-family: Arial; text-align:center; padding:20px; background:#f0f4f8; }
 
-  if(p >= 3) p = 3;
+select, input { 
+  padding:10px; margin:10px auto; width:90%; max-width:350px; 
+  border-radius:8px; border:1px solid #ccc; display:block;
+}
+
+button { 
+  padding:12px; background:#2563eb; color:white; border:none; border-radius:10px; 
+  cursor:pointer; width:80%; max-width:200px; margin:10px auto; display:block;
+}
+
+#price { font-size:20px; font-weight:bold; margin-top:10px; }
+</style>
+</head>
+
+<body>
+
+<h2>🚕 تطبيق الحجز</h2>
+
+<!-- الحجز -->
+<div id="bookingSection">
+  <h3>طلب رحلة</h3>
+
+  <select id="from">
+    <option value="">من</option>
+    <option>عمان</option>
+    <option>اربد</option>
+    <option>الزرقاء</option>
+    <option>المفرق</option>
+  </select>
+
+  <select id="to">
+    <option value="">إلى</option>
+    <option>عمان</option>
+    <option>اربد</option>
+    <option>الزرقاء</option>
+    <option>المفرق</option>
+  </select>
+
+  <input id="name" placeholder="الاسم">
+  <input id="passengers" type="number" placeholder="عدد الركاب">
+  <input id="date" type="date">
+  <input id="time" type="time">
+
+  <div id="price">السعر: 0 دينار</div>
+  <button id="bookRideBtn">طلب</button>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// دالة السعر
+function price(f,t){
+  if ((f=="عمان"&&t=="اربد")||(f=="اربد"&&t=="عمان")) return 5;
+  if ((f=="عمان"&&t=="الزرقاء")||(f=="الزرقاء"&&t=="عمان")) return 2.5;
+  if ((f=="عمان"&&t=="المفرق")||(f=="المفرق"&&t=="عمان")) return 3;
+  if ((f=="اربد"&&t=="المفرق")||(f=="المفرق"&&t=="اربد")) return 2.5;
+  if ((f=="اربد"&&t=="الزرقاء")||(f=="الزرقاء"&&t=="اربد")) return 3;
+  if ((f=="المفرق"&&t=="الزرقاء")||(f=="الزرقاء"&&t=="المفرق")) return 2.5;
+  return 0;
+}
+
+// تحديث السعر
+function update(){
+  let f=document.getElementById("from").value;
+  let t=document.getElementById("to").value;
+  let p=Number(document.getElementById("passengers").value)||1;
+  if(p>=3) p=3;
+  document.getElementById("price").innerText="السعر: "+(price(f,t)*p)+" دينار";
+}
+
+document.getElementById("from").onchange=update;
+document.getElementById("to").onchange=update;
+document.getElementById("passengers").oninput=update;
+
+// الحجز
+document.getElementById("bookRideBtn").onclick=()=>{
+  let from=document.getElementById("from").value;
+  let to=document.getElementById("to").value;
+  let name=document.getElementById("name").value;
+  let p=Number(document.getElementById("passengers").value);
+  let date=document.getElementById("date").value;
+  let time=document.getElementById("time").value;
+
+  if(p>=3) p=3;
 
   if(!from || !to || !name || !p || !date || !time){
     return alert("عبّي كل الحقول");
@@ -15,27 +110,22 @@ document.getElementById("bookRideBtn").onclick = () => {
 
   let total = price(from,to) * p;
 
-  let orderData = {
+  // إرسال الطلب لـ Firebase
+  db.ref("orders/order" + Date.now()).set({
     pickup_location: from,
     dropoff_location: to,
     passenger_count: p,
     pickup_date: date,
     pickup_time: time,
     customer_name: name,
-    customer_phone: document.getElementById("phoneLogin").value,
+    customer_phone: "0599999999", // اختياري قبل OTP
     price: total,
     status: "new"
-  };
-
-  console.log("Sending order:", orderData);
-
-  db.ref("orders/order" + Date.now()).set(orderData)
-  .then(() => {
-    console.log("SUCCESS ✅");
-    alert("تم الحجز 🚕\nالسعر: " + total + " دينار");
-  })
-  .catch((error) => {
-    console.error("ERROR ❌", error);
-    alert("فشل الإرسال: " + error.message);
   });
+
+  alert("تم الحجز 🚕\nالسعر: "+total+" دينار");
 };
+</script>
+
+</body>
+</html>
