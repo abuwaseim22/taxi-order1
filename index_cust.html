@@ -1,247 +1,41 @@
-<!DOCTYPE html>
-<html lang="ar">
-<head>
-<meta charset="UTF-8">
-<title>Taxi App</title>
+document.getElementById("bookRideBtn").onclick = () => {
 
-<style>
-body { font-family: Arial; text-align:center; padding:20px; background:#f0f4f8; }
+  let from = document.getElementById("from").value;
+  let to = document.getElementById("to").value;
+  let name = document.getElementById("name").value;
+  let p = Number(document.getElementById("passengers").value);
+  let date = document.getElementById("date").value;
+  let time = document.getElementById("time").value;
 
-select, input { 
-  padding:10px; margin:10px auto; width:90%; max-width:350px; 
-  border-radius:8px; border:1px solid #ccc; display:block;
-}
+  if(p >= 3) p = 3;
 
-button { 
-  padding:12px; background:#2563eb; color:white; border:none; border-radius:10px; 
-  cursor:pointer; width:80%; max-width:200px; margin:10px auto; display:block;
-}
+  if(!from || !to || !name || !p || !date || !time){
+    return alert("عبّي كل الحقول");
+  }
 
-#price { font-size:20px; font-weight:bold; margin-top:10px; }
-.hidden { display:none; }
-</style>
-</head>
+  let total = price(from,to) * p;
 
-<body>
+  let orderData = {
+    pickup_location: from,
+    dropoff_location: to,
+    passenger_count: p,
+    pickup_date: date,
+    pickup_time: time,
+    customer_name: name,
+    customer_phone: document.getElementById("phoneLogin").value,
+    price: total,
+    status: "new"
+  };
 
-<h2>🚕 تطبيق الحجز</h2>
+  console.log("Sending order:", orderData);
 
-<!-- البداية -->
-<div id="startSection">
-  <button id="loginBtn">تسجيل دخول</button>
-  <button id="newUserBtn">مستخدم جديد</button>
-</div>
-
-<!-- تسجيل الدخول -->
-<div id="loginSection" class="hidden">
-  <input id="phoneLogin" type="tel" placeholder="رقم الهاتف +962">
-  <button id="sendLoginOTP">إرسال OTP</button>
-</div>
-
-<!-- مستخدم جديد -->
-<div id="newUserSection" class="hidden">
-  <input id="newName" placeholder="الاسم">
-  <input id="newPhone" placeholder="رقم الهاتف +962">
-  <input id="newEmail" placeholder="البريد (اختياري)">
-  <button id="sendNewUserOTP">تسجيل + OTP</button>
-</div>
-
-<!-- OTP -->
-<div id="otpSection" class="hidden">
-  <input id="otpInput" placeholder="ادخل الكود">
-  <button id="verifyOTP">تحقق</button>
-</div>
-
-<!-- الحجز -->
-<div id="bookingSection" class="hidden">
-  <h3>طلب رحلة</h3>
-
-  <select id="from">
-    <option value="">من</option>
-    <option>عمان</option>
-    <option>اربد</option>
-    <option>الزرقاء</option>
-    <option>المفرق</option>
-  </select>
-
-  <select id="to">
-    <option value="">إلى</option>
-    <option>عمان</option>
-    <option>اربد</option>
-    <option>الزرقاء</option>
-    <option>المفرق</option>
-  </select>
-
-  <input id="name" placeholder="الاسم">
-  <input id="passengers" type="number" placeholder="عدد الركاب">
-  <input id="date" type="date">
-  <input id="time" type="time">
-
-  <div id="price">السعر: 0</div>
-  <button id="bookRideBtn">طلب</button>
-</div>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
-  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
-  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
-  projectId: "abuwaseim-1e6a5"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const auth = firebase.auth();
-
-// sections
-const start = document.getElementById("startSection");
-const login = document.getElementById("loginSection");
-const newUser = document.getElementById("newUserSection");
-const otp = document.getElementById("otpSection");
-const booking = document.getElementById("bookingSection");
-
-document.getElementById("loginBtn").onclick = ()=>{
-  start.classList.add("hidden");
-  login.classList.remove("hidden");
-};
-
-document.getElementById("newUserBtn").onclick = ()=>{
-  start.classList.add("hidden");
-  newUser.classList.remove("hidden");
-};
-
-let confirmationResult;
-
-// 🔥 تسجيل دخول
-document.getElementById("sendLoginOTP").onclick = ()=>{
-  let phone = document.getElementById("phoneLogin").value;
-  if(!phone) return alert("ادخل الرقم");
-
-  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier("sendLoginOTP",{size:"invisible"});
-
-  auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
-  .then(res=>{
-    confirmationResult = res;
-    login.classList.add("hidden");
-    otp.classList.remove("hidden");
+  db.ref("orders/order" + Date.now()).set(orderData)
+  .then(() => {
+    console.log("SUCCESS ✅");
+    alert("تم الحجز 🚕\nالسعر: " + total + " دينار");
   })
-  .catch(()=>{
-    alert("وضع تجريبي: استخدم 123456");
-    login.classList.add("hidden");
-    otp.classList.remove("hidden");
-
-    confirmationResult = {
-      confirm:(code)=>{
-        if(code==="123456"){
-          return Promise.resolve({user:{uid:"testUser",phoneNumber:phone}});
-        } else {
-          return Promise.reject();
-        }
-      }
-    };
+  .catch((error) => {
+    console.error("ERROR ❌", error);
+    alert("فشل الإرسال: " + error.message);
   });
 };
-
-// 🔥 مستخدم جديد
-document.getElementById("sendNewUserOTP").onclick = ()=>{
-  let name = document.getElementById("newName").value;
-  let phone = document.getElementById("newPhone").value;
-  let email = document.getElementById("newEmail").value;
-
-  if(!name || !phone) return alert("ادخل البيانات");
-
-  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier("sendNewUserOTP",{size:"invisible"});
-
-  auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
-  .then(res=>{
-    confirmationResult = res;
-    newUser.classList.add("hidden");
-    otp.classList.remove("hidden");
-    otp.dataset.user = JSON.stringify({name,phone,email});
-  })
-  .catch(()=>{
-    alert("وضع تجريبي: استخدم 123456");
-    newUser.classList.add("hidden");
-    otp.classList.remove("hidden");
-
-    otp.dataset.user = JSON.stringify({name,phone,email});
-
-    confirmationResult = {
-      confirm:(code)=>{
-        if(code==="123456"){
-          return Promise.resolve({user:{uid:"testUser",phoneNumber:phone}});
-        } else {
-          return Promise.reject();
-        }
-      }
-    };
-  });
-};
-
-// تحقق
-document.getElementById("verifyOTP").onclick = ()=>{
-  let code = document.getElementById("otpInput").value;
-
-  confirmationResult.confirm(code)
-  .then(res=>{
-    let userData = otp.dataset.user ? JSON.parse(otp.dataset.user) : null;
-
-    if(userData){
-      db.ref("users/"+res.user.uid).set(userData);
-      document.getElementById("name").value = userData.name;
-      document.getElementById("phoneLogin").value = userData.phone;
-    }
-
-    otp.classList.add("hidden");
-    booking.classList.remove("hidden");
-  })
-  .catch(()=>alert("الكود غلط"));
-};
-
-// السعر
-function price(f,t){
-  if ((f=="عمان"&&t=="اربد")||(f=="اربد"&&t=="عمان")) return 5;
-  if ((f=="عمان"&&t=="الزرقاء")||(f=="الزرقاء"&&t=="عمان")) return 2.5;
-  if ((f=="عمان"&&t=="المفرق")||(f=="المفرق"&&t=="عمان")) return 3;
-  return 0;
-}
-
-function update(){
-  let f=document.getElementById("from").value;
-  let t=document.getElementById("to").value;
-  let p=document.getElementById("passengers").value||1;
-  document.getElementById("price").innerText="السعر: "+(price(f,t)*p);
-}
-
-document.getElementById("from").onchange=update;
-document.getElementById("to").onchange=update;
-document.getElementById("passengers").oninput=update;
-
-// حجز
-document.getElementById("bookRideBtn").onclick=()=>{
-  let from=document.getElementById("from").value;
-  let to=document.getElementById("to").value;
-  let name=document.getElementById("name").value;
-  let p=document.getElementById("passengers").value;
-  let date=document.getElementById("date").value;
-  let time=document.getElementById("time").value;
-
-  if(!from||!to||!name||!p||!date||!time) return alert("عبّي كل الحقول");
-
-  let total=price(from,to)*p;
-
-  db.ref("orders/"+Date.now()).set({
-    from,to,name,p,date,time,total
-  });
-
-  alert("تم الحجز 🚕 السعر: "+total);
-};
-</script>
-
-</body>
-</html>
