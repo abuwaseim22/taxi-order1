@@ -5,15 +5,16 @@
 <title>Taxi App</title>
 
 <style>
-body { font-family: Arial; text-align: center; padding:20px; }
-select, input { padding:10px; margin:10px; width:250px; }
-button { padding:12px; background:blue; color:white; border:none; }
+body { font-family: Arial; text-align: center; padding:20px; background:#f0f4f8; }
+select, input { padding:10px; margin:10px; width:250px; border-radius:8px; border:1px solid #ccc; }
+button { padding:12px; background:#2563eb; color:white; border:none; border-radius:10px; cursor:pointer; }
+#price { font-size:20px; font-weight:bold; }
 </style>
 
 </head>
 <body>
 
-<h2>طلب تاكسي</h2>
+<h2>طلب تاكسي 🚕</h2>
 
 <select id="from">
   <option value="">من أين؟</option>
@@ -32,17 +33,37 @@ button { padding:12px; background:blue; color:white; border:none; }
 </select><br>
 
 <input id="passengers" type="number" placeholder="عدد الركاب"><br>
+<input id="date" type="date"><br>
+<input id="time" type="time"><br>
 
-<div id="price">السعر: 0</div>
+<div id="price">السعر: 0 دينار</div>
 
 <button onclick="bookRide()">طلب</button>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
 <script>
+// 🔑 إعداد Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// 🔽 عناصر الصفحة
 const fromInput = document.getElementById("from");
 const toInput = document.getElementById("to");
 const passengersInput = document.getElementById("passengers");
+const dateInput = document.getElementById("date");
+const timeInput = document.getElementById("time");
 const priceLabel = document.getElementById("price");
 
+// 🔥 حساب السعر
 function getPrice(from, to){
   if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
   if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
@@ -53,18 +74,52 @@ function getPrice(from, to){
   return 0;
 }
 
+// 🔄 تحديث السعر
 function updatePrice(){
   let base = getPrice(fromInput.value, toInput.value);
-  let p = Number(passengersInput.value)||1;
-  priceLabel.innerText = "السعر: " + (base*p);
+  let p = Number(passengersInput.value) || 1;
+  if(p >= 3) p = 3; // 🔥 الحد الأقصى للركاب = 3
+  let total = base * p;
+  priceLabel.innerText = "السعر: " + total + " دينار";
 }
 
+// 👀 أحداث تغيير القيم
 fromInput.addEventListener("change", updatePrice);
 toInput.addEventListener("change", updatePrice);
 passengersInput.addEventListener("input", updatePrice);
 
+// 🚀 الحجز
 function bookRide(){
-  alert("الزر شغال ✅");
+  let from = fromInput.value;
+  let to = toInput.value;
+  let passengers = Number(passengersInput.value);
+  let date = dateInput.value;
+  let time = timeInput.value;
+
+  if(!from) return alert("اختر مكان الانطلاق");
+  if(!to) return alert("اختر الوجهة");
+  if(!date) return alert("اختر التاريخ");
+  if(!time) return alert("اختر الوقت");
+  if(!passengers || passengers <= 0) return alert("ادخل عدد الركاب");
+
+  let base = getPrice(from, to);
+  if(base === 0) return alert("المسار غير مدعوم");
+
+  if(passengers >= 3) passengers = 3; // 🔥 نفس الفكرة للحجز
+  let total = base * passengers;
+
+  db.ref("orders/order" + Date.now()).set({
+    pickup_location: from,
+    dropoff_location: to,
+    pickup_date: date,
+    pickup_time: time,
+    passenger_count: passengers,
+    price: total,
+    status: "new"
+  });
+
+  alert("تم الحجز 🚕\nالسعر: " + total + " دينار");
+  priceLabel.innerText = "السعر: " + total + " دينار";
 }
 </script>
 
