@@ -11,9 +11,8 @@ body {
   background:#f0f4f8;
 }
 
-/* الحقول والقوائم */
 select, input {
-  padding:10px;
+  padding:12px;
   margin:10px auto;
   width: 90%;
   max-width: 350px;
@@ -21,10 +20,11 @@ select, input {
   border:1px solid #ccc;
   box-sizing: border-box;
   display: block;
+  font-size:16px;
 }
 
 button {
-  padding:12px;
+  padding:14px;
   background:#2563eb;
   color:white;
   border:none;
@@ -34,16 +34,17 @@ button {
   max-width: 200px;
   margin: 10px auto;
   display: block;
+  font-size:16px;
 }
 
 #price {
-  font-size:20px;
+  font-size:22px;
   font-weight:bold;
   margin-top:10px;
 }
 
 #map {
-  height:300px;
+  height:350px;
   width:100%;
   margin:10px auto;
   border:1px solid #ccc;
@@ -97,7 +98,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// --- المتغيرات ---
+// --- عناصر الصفحة ---
 const fromInput = document.getElementById("from");
 const toInput = document.getElementById("to");
 const nameInput = document.getElementById("name");
@@ -119,6 +120,8 @@ function initMap() {
     zoom: 7
   });
 
+  const geocoder = new google.maps.Geocoder();
+
   map.addListener("click", (event) => {
     if(markers.length < 2){
       const marker = new google.maps.Marker({
@@ -128,8 +131,6 @@ function initMap() {
       });
       markers.push(marker);
 
-      // جلب العنوان التفصيلي
-      const geocoder = new google.maps.Geocoder();
       geocoder.geocode({ location: event.latLng }, (results, status) => {
         if (status === "OK" && results[0]) {
           if(markers.length===1) pickup_address = results[0].formatted_address;
