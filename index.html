@@ -2,39 +2,40 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>طلبات السائق</title>
+<title>Taxi App - السائق</title>
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  padding:20px;
+  background:#f0f4f8;
+}
+
+#ordersList {
+  margin-top:20px;
+  text-align:right;
+  font-size:18px;
+}
+
+.orderItem {
+  border:1px solid #ccc;
+  border-radius:10px;
+  padding:15px;
+  margin-bottom:15px;
+  background:white;
+}
+</style>
+</head>
+<body>
+
+<h2>طلبات الرحلات 🚗</h2>
+<div id="ordersList"></div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-<style>
-body {
-  font-family: Arial;
-  background: #f0f4f8;
-  padding: 20px;
-}
-.card {
-  background: white;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 10px;
-}
-button {
-  padding: 8px 12px;
-  background: green;
-  color: white;
-  border: none;
-  border-radius: 8px;
-}
-</style>
-
-</head>
-<body>
-
-<h2>طلبات التاكسي 🚕</h2>
-<div id="list"></div>
-
 <script>
+// Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -42,40 +43,29 @@ const firebaseConfig = {
   projectId: "abuwaseim-1e6a5"
 };
 firebase.initializeApp(firebaseConfig);
-
 const db = firebase.database();
-const list = document.getElementById("list");
 
-db.ref("orders").on("value", snap => {
-  list.innerHTML = "";
-  let data = snap.val() || {};
+// عناصر الصفحة
+const ordersList = document.getElementById("ordersList");
 
-  for(let id in data){
-    let r = data[id];
-
-    let div = document.createElement("div");
-    div.className = "card";
-
+// عرض الطلبات live
+db.ref("orders").on("value", snapshot => {
+  ordersList.innerHTML = "";
+  const orders = snapshot.val();
+  if(!orders) return;
+  Object.keys(orders).forEach(key => {
+    const o = orders[key];
+    const div = document.createElement("div");
+    div.className = "orderItem";
     div.innerHTML = `
-      🚕 ${r.pickup_location} → ${r.dropoff_location}<br>
-      📅 ${r.pickup_date} ⏰ ${r.pickup_time}<br>
-      👥 ${r.passenger_count} ركاب<br>
-      💰 ${r.price} دينار<br>
-      📌 ${r.status}
+      <b>${o.customer_name}</b><br>
+      ${o.pickup_location} → ${o.dropoff_location}<br>
+      الركاب: ${o.passenger_count}<br>
+      التاريخ: ${o.pickup_date} ${o.pickup_time}<br>
+      السعر: ${o.price} دينار
     `;
-
-    if(r.status === "new"){
-      let btn = document.createElement("button");
-      btn.innerText = "قبول";
-      btn.onclick = () => {
-        db.ref("orders/" + id + "/status").set("accepted");
-        alert("تم القبول");
-      };
-      div.appendChild(btn);
-    }
-
-    list.appendChild(div);
-  }
+    ordersList.appendChild(div);
+  });
 });
 </script>
 
