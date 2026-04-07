@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Taxi App - حجز</title>
+<title>Taxi App - حجز + خريطة</title>
 <style>
 body {
   font-family: Arial;
@@ -13,44 +13,49 @@ body {
 
 /* الحقول والقوائم */
 select, input {
-  padding:15px;
-  margin:15px auto;
-  width: 95%;
-  max-width: 400px;
-  border-radius:10px;
+  padding:10px;
+  margin:10px auto;
+  width: 90%;
+  max-width: 350px;
+  border-radius:8px;
   border:1px solid #ccc;
   box-sizing: border-box;
   display: block;
-  font-size:18px;
 }
 
 button {
-  padding:15px;
-  font-size:18px;
+  padding:12px;
   background:#2563eb;
   color:white;
   border:none;
-  border-radius:12px;
+  border-radius:10px;
   cursor:pointer;
   width: 80%;
-  max-width: 250px;
-  margin: 15px auto;
+  max-width: 200px;
+  margin: 10px auto;
   display: block;
 }
 
 #price {
-  font-size:24px;
+  font-size:20px;
   font-weight:bold;
   margin-top:10px;
 }
+
+#map {
+  height:300px;
+  width:100%;
+  margin:10px auto;
+  border:1px solid #ccc;
+  border-radius:8px;
+}
+
+.hidden { display:none; }
 </style>
 </head>
 <body>
 
 <h2>طلب تاكسي 🚕</h2>
-
-<input id="phoneNumber" type="tel" placeholder="رقم الهاتف">
-<input id="name" type="text" placeholder="الاسم">
 
 <select id="from">
   <option value="">من أين؟</option>
@@ -68,10 +73,12 @@ button {
   <option value="المفرق">المفرق</option>
 </select>
 
+<input id="name" type="text" placeholder="الاسم">
 <input id="passengers" type="number" placeholder="عدد الركاب">
 <input id="date" type="date" placeholder="اختر التاريخ">
 <input id="time" type="time" placeholder="اختر الوقت">
 
+<div id="map"></div>
 <div id="price">السعر: 0 دينار</div>
 <button id="bookRideBtn">طلب</button>
 
@@ -80,7 +87,7 @@ button {
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-// إعداد Firebase
+// 🔑 إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -90,18 +97,52 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// عناصر الصفحة
-const phoneInput = document.getElementById("phoneNumber");
-const nameInput = document.getElementById("name");
+// --- المتغيرات ---
 const fromInput = document.getElementById("from");
 const toInput = document.getElementById("to");
+const nameInput = document.getElementById("name");
 const passengersInput = document.getElementById("passengers");
 const dateInput = document.getElementById("date");
 const timeInput = document.getElementById("time");
 const priceLabel = document.getElementById("price");
 const bookRideBtn = document.getElementById("bookRideBtn");
 
-// حساب السعر
+let map;
+let markers = [];
+let pickup_address = "";
+let dropoff_address = "";
+
+// --- Google Maps ---
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: {lat: 31.963158, lng: 35.930359}, // عمان مركز مبدئي
+    zoom: 7
+  });
+
+  map.addListener("click", (event) => {
+    if(markers.length < 2){
+      const marker = new google.maps.Marker({
+        position: event.latLng,
+        map: map,
+        label: markers.length === 0 ? "A" : "B"
+      });
+      markers.push(marker);
+
+      // جلب العنوان التفصيلي
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ location: event.latLng }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          if(markers.length===1) pickup_address = results[0].formatted_address;
+          if(markers.length===2) dropoff_address = results[0].formatted_address;
+        }
+      });
+    } else {
+      alert("تم وضع الماركرين بالفعل");
+    }
+  });
+}
+
+// --- السعر ---
 function getPrice(from, to){
   if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
   if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
@@ -115,7 +156,6 @@ function getPrice(from, to){
 function updatePrice(){
   let base = getPrice(fromInput.value, toInput.value);
   let p = Number(passengersInput.value) || 1;
-  if(p >= 3) p = 3; // شرط ≥3 ركاب
   let total = base * p;
   priceLabel.innerText = "السعر: " + total + " دينار";
 }
@@ -124,46 +164,48 @@ fromInput.addEventListener("change", updatePrice);
 toInput.addEventListener("change", updatePrice);
 passengersInput.addEventListener("input", updatePrice);
 
-// حجز الرحلة
+// --- الحجز ---
 bookRideBtn.addEventListener("click", () => {
   let from = fromInput.value;
   let to = toInput.value;
   let name = nameInput.value;
-  let phone = phoneInput.value;
   let passengers = Number(passengersInput.value);
   let date = dateInput.value;
   let time = timeInput.value;
 
-  if(!phone) return alert("أدخل رقم الهاتف");
-  if(!name) return alert("أدخل الاسم");
   if(!from) return alert("اختر مكان الانطلاق");
   if(!to) return alert("اختر الوجهة");
-  if(!passengers || passengers <= 0) return alert("ادخل عدد الركاب");
+  if(!name) return alert("أدخل الاسم");
+  if(!passengers || passengers<=0) return alert("ادخل عدد الركاب");
   if(!date) return alert("اختر التاريخ");
   if(!time) return alert("اختر الوقت");
+  if(markers.length<2) return alert("ضع الماركرين للانطلاق والوصول");
 
   let base = getPrice(from,to);
-  if(base === 0) return alert("المسار غير مدعوم");
-
-  if(passengers >= 3) passengers = 3;
+  if(base===0) return alert("المسار غير مدعوم");
 
   let total = base * passengers;
 
-  db.ref("orders/order" + Date.now()).set({
-    pickup_location: from,
-    dropoff_location: to,
+  db.ref("orders/order"+Date.now()).set({
+    pickup_city: from,
+    dropoff_city: to,
+    pickup_address: pickup_address,
+    dropoff_address: dropoff_address,
     passenger_count: passengers,
     pickup_date: date,
     pickup_time: time,
     customer_name: name,
-    customer_phone: phone,
     price: total,
     status: "new"
   });
 
-  alert("تم الحجز 🚕\nالسعر: " + total + " دينار");
-  priceLabel.innerText = "السعر: " + total + " دينار";
+  alert("تم الحجز 🚕\nالسعر: "+total+" دينار");
+  priceLabel.innerText = "السعر: "+total+" دينار";
 });
+</script>
+
+<script async
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC7EHj5KWGruCOJXeTSiPFxjVvAURFgsNk&callback=initMap">
 </script>
 
 </body>
