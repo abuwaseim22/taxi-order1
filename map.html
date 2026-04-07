@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>خريطة الحجز</title>
+<style>
+  #map {
+    height: 100%;
+    width: 100%;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #instructions {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background:white;
+    padding:10px;
+    border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.3);
+    font-family: Arial;
+    z-index: 5;
+  }
+  #doneBtn {
+    margin-top:5px;
+    padding:8px 12px;
+    background:#2563eb;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="instructions">
+  ضع <b>ماركر الانطلاق</b> أولًا ثم <b>ماركر الوصول</b><br>
+  <button id="doneBtn">تم الاختيار</button>
+</div>
+<div id="map"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+  // 🔑 إعداد Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+    authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+    databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+    projectId: "abuwaseim-1e6a5"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let map;
+  let markers = [];
+  let pickup_address = "";
+  let dropoff_address = "";
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: {lat: 31.963158, lng: 35.930359}, // عمان مركز مبدئي
+      zoom: 7
+    });
+
+    map.addListener("click", (event) => {
+      if (markers.length < 2) {
+        const marker = new google.maps.Marker({
+          position: event.latLng,
+          map: map,
+          label: markers.length === 0 ? "A" : "B"
+        });
+        markers.push(marker);
+
+        // جلب العنوان التفصيلي
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: event.latLng }, (results, status) => {
+          if (status === "OK" && results[0]) {
+            if (markers.length === 1) pickup_address = results[0].formatted_address;
+            if (markers.length === 2) dropoff_address = results[0].formatted_address;
+          }
+        });
+      } else {
+        alert("تم وضع الماركرين بالفعل");
+      }
+    });
+  }
+
+  document.getElementById("doneBtn").addEventListener("click", () => {
+    if (markers.length < 2) return alert("ضع الماركرين أولاً");
+    
+    // نرسل العناوين للـ Firebase بشكل مؤقت
+    db.ref("temp_addresses/" + Date.now()).set({
+      pickup_address: pickup_address,
+      dropoff_address: dropoff_address
+    });
+
+    alert("تم حفظ العناوين! ارجع لصفحة الحجز لإكمال الطلب");
+  });
+</script>
+
+<script async
+src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap">
+</script>
+
+</body>
+</html>
