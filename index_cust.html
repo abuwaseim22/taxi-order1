@@ -10,9 +10,8 @@ body {
   padding:20px;
   background:#f0f4f8;
 }
-
 select, input {
-  padding:12px;
+  padding:10px;
   margin:10px auto;
   width: 90%;
   max-width: 350px;
@@ -20,11 +19,9 @@ select, input {
   border:1px solid #ccc;
   box-sizing: border-box;
   display: block;
-  font-size:16px;
 }
-
 button {
-  padding:14px;
+  padding:12px;
   background:#2563eb;
   color:white;
   border:none;
@@ -34,54 +31,59 @@ button {
   max-width: 200px;
   margin: 10px auto;
   display: block;
-  font-size:16px;
 }
-
 #price {
-  font-size:22px;
+  font-size:20px;
   font-weight:bold;
   margin-top:10px;
 }
-
 #map {
-  height:350px;
-  width:100%;
-  margin:10px auto;
-  border:1px solid #ccc;
-  border-radius:8px;
+  width: 90%;
+  height: 300px;
+  margin: 20px auto;
+  border: 1px solid #ccc;
+  border-radius: 10px;
 }
-
 .hidden { display:none; }
 </style>
 </head>
 <body>
 
-<h2>طلب تاكسي 🚕</h2>
+<h2>طلب تاكسي + خريطة 🚕</h2>
 
-<select id="from">
-  <option value="">من أين؟</option>
-  <option value="عمان">عمان</option>
-  <option value="اربد">اربد</option>
-  <option value="الزرقاء">الزرقاء</option>
-  <option value="المفرق">المفرق</option>
-</select>
+<!-- صفحة الحجز -->
+<div id="bookingSection">
+  <select id="from">
+    <option value="">من أين؟</option>
+    <option value="عمان">عمان</option>
+    <option value="اربد">اربد</option>
+    <option value="الزرقاء">الزرقاء</option>
+    <option value="المفرق">المفرق</option>
+  </select>
 
-<select id="to">
-  <option value="">إلى أين؟</option>
-  <option value="عمان">عمان</option>
-  <option value="اربد">اربد</option>
-  <option value="الزرقاء">الزرقاء</option>
-  <option value="المفرق">المفرق</option>
-</select>
+  <select id="to">
+    <option value="">إلى أين؟</option>
+    <option value="عمان">عمان</option>
+    <option value="اربد">اربد</option>
+    <option value="الزرقاء">الزرقاء</option>
+    <option value="المفرق">المفرق</option>
+  </select>
 
-<input id="name" type="text" placeholder="الاسم">
-<input id="passengers" type="number" placeholder="عدد الركاب">
-<input id="date" type="date" placeholder="اختر التاريخ">
-<input id="time" type="time" placeholder="اختر الوقت">
+  <input id="name" type="text" placeholder="الاسم">
+  <input id="passengers" type="number" placeholder="عدد الركاب">
 
-<div id="map"></div>
-<div id="price">السعر: 0 دينار</div>
-<button id="bookRideBtn">طلب</button>
+  <input id="date" type="date" placeholder="اختر التاريخ">
+  <input id="time" type="time" placeholder="اختر الوقت">
+
+  <div id="price">السعر: 0 دينار</div>
+
+  <div id="map"></div>
+
+  <input id="startAddress" type="text" placeholder="عنوان الانطلاق التفصيلي" readonly>
+  <input id="endAddress" type="text" placeholder="عنوان الوصول التفصيلي" readonly>
+
+  <button id="bookRideBtn">طلب</button>
+</div>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -98,7 +100,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// --- عناصر الصفحة ---
+// عناصر الصفحة
 const fromInput = document.getElementById("from");
 const toInput = document.getElementById("to");
 const nameInput = document.getElementById("name");
@@ -108,40 +110,8 @@ const timeInput = document.getElementById("time");
 const priceLabel = document.getElementById("price");
 const bookRideBtn = document.getElementById("bookRideBtn");
 
-let map;
-let markers = [];
-let pickup_address = "";
-let dropoff_address = "";
-
-// --- Google Maps ---
-function initMap() {
-  map = new google.maps.Map(document.getElementById("map"), {
-    center: {lat: 31.963158, lng: 35.930359}, // عمان مركز مبدئي
-    zoom: 7
-  });
-
-  const geocoder = new google.maps.Geocoder();
-
-  map.addListener("click", (event) => {
-    if(markers.length < 2){
-      const marker = new google.maps.Marker({
-        position: event.latLng,
-        map: map,
-        label: markers.length === 0 ? "A" : "B"
-      });
-      markers.push(marker);
-
-      geocoder.geocode({ location: event.latLng }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          if(markers.length===1) pickup_address = results[0].formatted_address;
-          if(markers.length===2) dropoff_address = results[0].formatted_address;
-        }
-      });
-    } else {
-      alert("تم وضع الماركرين بالفعل");
-    }
-  });
-}
+const startAddressInput = document.getElementById("startAddress");
+const endAddressInput = document.getElementById("endAddress");
 
 // --- السعر ---
 function getPrice(from, to){
@@ -165,6 +135,38 @@ fromInput.addEventListener("change", updatePrice);
 toInput.addEventListener("change", updatePrice);
 passengersInput.addEventListener("input", updatePrice);
 
+// --- Google Maps ---
+let map, geocoder, startMarker, endMarker;
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: {lat: 31.95, lng: 35.93}, // الأردن تقريبًا
+    zoom: 7
+  });
+  geocoder = new google.maps.Geocoder();
+
+  // إضافة ماركر عند الضغط
+  map.addListener("click", (e) => {
+    if(!startMarker){
+      startMarker = new google.maps.Marker({position: e.latLng, map: map, label:"A"});
+      geocoder.geocode({location: e.latLng}, (results, status) => {
+        if(status === "OK" && results[0]){
+          startAddressInput.value = results[0].formatted_address;
+        }
+      });
+    } else if(!endMarker){
+      endMarker = new google.maps.Marker({position: e.latLng, map: map, label:"B"});
+      geocoder.geocode({location: e.latLng}, (results, status) => {
+        if(status === "OK" && results[0]){
+          endAddressInput.value = results[0].formatted_address;
+        }
+      });
+    } else {
+      alert("تم وضع ماركر البداية والنهاية بالفعل");
+    }
+  });
+}
+
 // --- الحجز ---
 bookRideBtn.addEventListener("click", () => {
   let from = fromInput.value;
@@ -173,41 +175,38 @@ bookRideBtn.addEventListener("click", () => {
   let passengers = Number(passengersInput.value);
   let date = dateInput.value;
   let time = timeInput.value;
+  let startAddress = startAddressInput.value;
+  let endAddress = endAddressInput.value;
 
-  if(!from) return alert("اختر مكان الانطلاق");
-  if(!to) return alert("اختر الوجهة");
-  if(!name) return alert("أدخل الاسم");
-  if(!passengers || passengers<=0) return alert("ادخل عدد الركاب");
-  if(!date) return alert("اختر التاريخ");
-  if(!time) return alert("اختر الوقت");
-  if(markers.length<2) return alert("ضع الماركرين للانطلاق والوصول");
+  if(!from || !to || !name || !passengers || !date || !time || !startAddress || !endAddress){
+    return alert("عبّي كل الحقول");
+  }
 
-  let base = getPrice(from,to);
-  if(base===0) return alert("المسار غير مدعوم");
+  let base = getPrice(from, to);
+  if(base === 0) return alert("المسار غير مدعوم");
 
   let total = base * passengers;
 
-  db.ref("orders/order"+Date.now()).set({
-    pickup_city: from,
-    dropoff_city: to,
-    pickup_address: pickup_address,
-    dropoff_address: dropoff_address,
+  db.ref("orders/order" + Date.now()).set({
+    pickup_location: from,
+    dropoff_location: to,
     passenger_count: passengers,
     pickup_date: date,
     pickup_time: time,
     customer_name: name,
+    start_address: startAddress,
+    end_address: endAddress,
     price: total,
     status: "new"
   });
 
-  alert("تم الحجز 🚕\nالسعر: "+total+" دينار");
-  priceLabel.innerText = "السعر: "+total+" دينار";
+  alert("تم الحجز 🚕\nالسعر: " + total + " دينار");
+  priceLabel.innerText = "السعر: " + total + " دينار";
 });
 </script>
 
-<script async
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC7EHj5KWGruCOJXeTSiPFxjVvAURFgsNk&callback=initMap">
-</script>
+<!-- Google Maps -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap" async defer></script>
 
 </body>
 </html>
