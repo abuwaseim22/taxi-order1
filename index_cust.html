@@ -5,7 +5,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<title>Taxi App - Full Map</title>
+<title>Taxi App - المبدع V2</title>
 
 <style>
 body {
@@ -14,65 +14,47 @@ body {
   overflow:hidden;
 }
 
-/* الخريطة Full */
 #map {
   position:fixed;
-  top:0;
-  left:0;
   width:100%;
   height:100%;
 }
 
-/* الصندوق السفلي */
 #panel {
   position:fixed;
   bottom:0;
-  left:0;
   width:100%;
   height:40%;
   background:white;
-  border-top-left-radius:20px;
-  border-top-right-radius:20px;
-  box-shadow:0 -2px 10px rgba(0,0,0,0.2);
-  padding:15px;
+  border-radius:20px 20px 0 0;
+  padding:12px;
   overflow-y:auto;
 }
 
-/* العناصر */
 input, select {
   width:95%;
-  padding:15px;
-  margin:10px auto;
+  padding:12px;
+  margin:8px auto;
   display:block;
-  border-radius:10px;
+  border-radius:8px;
   border:1px solid #ccc;
-  font-size:18px;
+  font-size:16px;
 }
 
 button {
   width:90%;
-  padding:15px;
+  padding:12px;
   background:#2563eb;
   color:white;
   border:none;
-  border-radius:12px;
-  font-size:18px;
-  margin:10px auto;
-  display:block;
+  border-radius:10px;
+  font-size:16px;
 }
 
 #price {
   text-align:center;
-  font-size:22px;
+  font-size:18px;
   font-weight:bold;
-}
-
-/* سهم السائق */
-.arrow {
-  display:inline-block;
-  transform: rotate(180deg);
-  font-size:22px;
-  color:#2563eb;
 }
 </style>
 </head>
@@ -81,19 +63,22 @@ button {
 
 <div id="map"></div>
 
-<!-- Panel -->
 <div id="panel">
 
 <select id="from">
   <option value="">من أين؟</option>
   <option value="عمان">عمان</option>
   <option value="اربد">اربد</option>
+  <option value="الزرقاء">الزرقاء</option>
+  <option value="المفرق">المفرق</option>
 </select>
 
 <select id="to">
   <option value="">إلى أين؟</option>
   <option value="عمان">عمان</option>
   <option value="اربد">اربد</option>
+  <option value="الزرقاء">الزرقاء</option>
+  <option value="المفرق">المفرق</option>
 </select>
 
 <input id="name" placeholder="الاسم">
@@ -116,28 +101,41 @@ button {
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyD9...",
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // السعر
-function price(from,to){
-  if(from==="عمان"&&to==="اربد") return 5;
-  return 2;
+function getPrice(from, to){
+  if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
+  if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
+  if ((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3;
+  if ((from==="اربد"&&to==="المفرق")||(from==="المفرق"&&to==="اربد")) return 2.5;
+  if ((from==="اربد"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="اربد")) return 3;
+  if ((from==="المفرق"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="المفرق")) return 2.5;
+  return 0;
 }
 
-// تحديث السعر
 function updatePrice(){
-  let p = Number(document.getElementById("passengers").value)||1;
-  let total = price(from.value,to.value)*p;
-  document.getElementById("price").innerText = "السعر: "+total;
+  let p = Number(passengers.value) || 1;
+  let total = getPrice(from.value,to.value) * p;
+  document.getElementById("price").innerText = "السعر: " + total;
 }
 
-from.onchange=updatePrice;
-to.onchange=updatePrice;
-passengers.oninput=updatePrice;
+from.onchange = updatePrice;
+to.onchange = updatePrice;
+passengers.oninput = updatePrice;
+
+// تحديد المدينة من العنوان 🔥
+function detectCity(address){
+  if(address.includes("Amman")) return "عمان";
+  if(address.includes("Irbid")) return "اربد";
+  if(address.includes("Zarqa")) return "الزرقاء";
+  if(address.includes("Mafraq")) return "المفرق";
+  return "";
+}
 
 // الخريطة
 let map, startMarker, endMarker, geocoder;
@@ -152,24 +150,48 @@ function initMap(){
 
   map.addListener("click",(e)=>{
     if(!startMarker){
-      startMarker=new google.maps.Marker({position:e.latLng,map});
-      geocoder.geocode({location:e.latLng},(r)=>startAddress.value=r[0].formatted_address);
-    }else if(!endMarker){
-      endMarker=new google.maps.Marker({position:e.latLng,map});
-      geocoder.geocode({location:e.latLng},(r)=>endAddress.value=r[0].formatted_address);
+      startMarker = new google.maps.Marker({position:e.latLng,map});
+      geocoder.geocode({location:e.latLng},(results,status)=>{
+        if(status==="OK" && results[0]){
+          let addr = results[0].formatted_address;
+          startAddress.value = addr;
+
+          let city = detectCity(addr);
+          if(city) from.value = city;
+
+          updatePrice();
+        }
+      });
+    } else if(!endMarker){
+      endMarker = new google.maps.Marker({position:e.latLng,map});
+      geocoder.geocode({location:e.latLng},(results,status)=>{
+        if(status==="OK" && results[0]){
+          let addr = results[0].formatted_address;
+          endAddress.value = addr;
+
+          let city = detectCity(addr);
+          if(city) to.value = city;
+
+          updatePrice();
+        }
+      });
     }
   });
 }
 
 // الحجز
-book.onclick=()=>{
+document.getElementById("book").onclick = ()=>{
+  let total = getPrice(from.value,to.value) * (Number(passengers.value)||1);
+
   db.ref("orders/"+Date.now()).set({
-    from:from.value,
-    to:to.value,
-    start:startAddress.value,
-    end:endAddress.value
+    from: from.value,
+    to: to.value,
+    start_address: startAddress.value,
+    end_address: endAddress.value,
+    price: total
   });
-  alert("تم 🚕");
+
+  alert("تم الحجز 🚕");
 };
 </script>
 
