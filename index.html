@@ -2,68 +2,57 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>تطبيق السائق - المبدع v2</title>
+<title>واجهة السائق</title>
 <style>
-body {
-  font-family: Arial,sans-serif;
-  margin:0;
-  padding:20px;
-  background:#e0f2fe;
-  overflow-y: scroll;
+html, body { height:100%; margin:0; padding:0; font-family: Arial, sans-serif; overflow:hidden; }
+body { background:#f0f4f8; }
+
+#ordersContainer {
+  position:absolute;
+  top:0; left:0; width:100%; height:100%; overflow-y:auto; padding:20px;
+  box-sizing:border-box;
 }
 
-.orderCard {
-  background: linear-gradient(135deg, #fef9c3, #fbbf24);
+.order-card {
+  background:#ffffff;
+  border-radius:12px;
   padding:20px;
-  margin:15px 0;
-  border-radius:15px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+  margin-bottom:15px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
   font-size:18px;
-  display:flex;
-  align-items:center;
-  gap:15px;
 }
 
-.orderCard img {
-  width:60px;
-  height:60px;
-  border-radius:50%;
+.order-card h3 {
+  font-size:22px;
+  margin:0 0 10px 0;
 }
 
-.orderDetails {
-  flex:1;
+.order-card p {
+  margin:5px 0;
 }
 
-.orderDetails h3{
-  margin:0 0 5px 0;
-  font-size:20px;
-}
-
-.orderDetails p{
-  margin:4px 0;
-}
-
-.acceptBtn {
-  background:#16a34a;
+.order-card button {
+  background:#28a745;
   color:white;
   border:none;
-  padding:10px 15px;
+  padding:12px;
   border-radius:8px;
   cursor:pointer;
-  font-size:16px;
+  font-size:18px;
+  margin-top:10px;
+  width:100%;
 }
 </style>
 </head>
 <body>
 
-<h2>طلبات جديدة 🚕</h2>
 <div id="ordersContainer"></div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-// Firebase setup
+// إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -73,44 +62,49 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const container = document.getElementById("ordersContainer");
+const ordersContainer = document.getElementById("ordersContainer");
 
-function createCard(orderID, order){
-  const card = document.createElement("div");
-  card.className="orderCard";
-  card.innerHTML = `
-    <img src="https://img.icons8.com/color/96/taxi.png"/>
-    <div class="orderDetails">
-      <h3>${order.customer_name} 🚕 ${order.pickup_location} → ${order.dropoff_location}</h3>
-      <p>هاتف: ${order.customer_phone}</p>
-      <p>ركاب: ${order.passenger_count}</p>
-      <p>التاريخ: ${order.pickup_date} | الوقت: ${order.pickup_time}</p>
-      <p>السعر: ${order.price} دينار</p>
-    </div>
-    <button class="acceptBtn">قبول الطلب</button>
-  `;
+function loadOrders(){
+  db.ref("orders").orderByChild("status").equalTo("new").on("value", snapshot=>{
+    ordersContainer.innerHTML="";
+    snapshot.forEach(child=>{
+      const orderId = child.key;
+      const order = child.val();
 
-  // زر قبول الطلب
-  card.querySelector(".acceptBtn").addEventListener("click", ()=>{
-    db.ref("orders/"+orderID+"/status").set("accepted");
-    alert("تم قبول الطلب ✅");
-    card.remove();
+      // قلب المسار عمان ↔ اربد تلقائياً
+      let displayFrom = order.pickup_location;
+      let displayTo = order.dropoff_location;
+      if((order.pickup_location==="عمان" && order.dropoff_location==="اربد") ||
+         (order.pickup_location==="اربد" && order.dropoff_location==="عمان")){
+        displayFrom = order.dropoff_location;
+        displayTo = order.pickup_location;
+      }
+
+      let cardHTML = `
+      <div class="order-card">
+        <h3>${displayFrom} → ${displayTo}</h3>
+        <p><strong>الركاب:</strong> ${order.passenger_count}</p>
+        <p><strong>الوقت:</strong> ${order.pickup_date} ${order.pickup_time}</p>
+        <p><strong>الاسم:</strong> ${order.customer_name}</p>
+        <p><strong>عنوان الانطلاق:</strong> ${order.pickup_address}</p>
+        <p><strong>عنوان الوصول:</strong> ${order.dropoff_address}</p>
+        <p><strong>السعر:</strong> ${order.price} دينار</p>
+        <button onclick="acceptOrder('${orderId}')">قبول الطلب</button>
+      </div>`;
+      ordersContainer.innerHTML += cardHTML;
+    });
   });
-
-  container.appendChild(card);
 }
 
-// جلب الطلبات الجديدة
-db.ref("orders").on("value", snapshot=>{
-  container.innerHTML="";
-  snapshot.forEach(snap=>{
-    const order = snap.val();
-    const orderID = snap.key;
-    if(order.status==="new"){
-      createCard(orderID, order);
-    }
-  });
-});
+function acceptOrder(orderId){
+  if(confirm("هل تريد قبول هذا الطلب؟")){
+    db.ref("orders/"+orderId).update({status:"accepted"});
+    alert("تم قبول الطلب 🚕");
+  }
+}
+
+// تحميل الطلبات عند فتح الصفحة
+loadOrders();
 </script>
 
 </body>
