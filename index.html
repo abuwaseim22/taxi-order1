@@ -8,28 +8,54 @@ body {
   font-family: Arial,sans-serif;
   margin:0;
   padding:20px;
-  background:#f0f4f8;
+  background:#e0f2fe;
+  overflow-y: scroll;
 }
 
 .orderCard {
-  background:white;
-  padding:15px;
-  margin:10px 0;
-  border-radius:10px;
-  box-shadow:0 0 5px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #fef9c3, #fbbf24);
+  padding:20px;
+  margin:15px 0;
+  border-radius:15px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+  font-size:18px;
+  display:flex;
+  align-items:center;
+  gap:15px;
 }
 
-.orderCard h3{
+.orderCard img {
+  width:60px;
+  height:60px;
+  border-radius:50%;
+}
+
+.orderDetails {
+  flex:1;
+}
+
+.orderDetails h3{
   margin:0 0 5px 0;
+  font-size:20px;
 }
 
-.orderCard p{
-  margin:3px 0;
+.orderDetails p{
+  margin:4px 0;
+}
+
+.acceptBtn {
+  background:#16a34a;
+  color:white;
+  border:none;
+  padding:10px 15px;
+  border-radius:8px;
+  cursor:pointer;
   font-size:16px;
 }
 </style>
 </head>
 <body>
+
 <h2>طلبات جديدة 🚕</h2>
 <div id="ordersContainer"></div>
 
@@ -37,6 +63,7 @@ body {
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
+// Firebase setup
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -48,24 +75,43 @@ const db = firebase.database();
 
 const container = document.getElementById("ordersContainer");
 
+function createCard(orderID, order){
+  const card = document.createElement("div");
+  card.className="orderCard";
+  card.innerHTML = `
+    <img src="https://img.icons8.com/color/96/taxi.png"/>
+    <div class="orderDetails">
+      <h3>${order.customer_name} 🚕 ${order.pickup_location} → ${order.dropoff_location}</h3>
+      <p>هاتف: ${order.customer_phone}</p>
+      <p>ركاب: ${order.passenger_count}</p>
+      <p>التاريخ: ${order.pickup_date} | الوقت: ${order.pickup_time}</p>
+      <p>السعر: ${order.price} دينار</p>
+    </div>
+    <button class="acceptBtn">قبول الطلب</button>
+  `;
+
+  // زر قبول الطلب
+  card.querySelector(".acceptBtn").addEventListener("click", ()=>{
+    db.ref("orders/"+orderID+"/status").set("accepted");
+    alert("تم قبول الطلب ✅");
+    card.remove();
+  });
+
+  container.appendChild(card);
+}
+
+// جلب الطلبات الجديدة
 db.ref("orders").on("value", snapshot=>{
   container.innerHTML="";
   snapshot.forEach(snap=>{
     const order = snap.val();
+    const orderID = snap.key;
     if(order.status==="new"){
-      const card = document.createElement("div");
-      card.className="orderCard";
-      card.innerHTML = `
-        <h3>${order.customer_name} 🚕 ${order.pickup_location} → ${order.dropoff_location}</h3>
-        <p>هاتف: ${order.customer_phone}</p>
-        <p>ركاب: ${order.passenger_count}</p>
-        <p>التاريخ: ${order.pickup_date} | الوقت: ${order.pickup_time}</p>
-        <p>السعر: ${order.price} دينار</p>
-      `;
-      container.appendChild(card);
+      createCard(orderID, order);
     }
   });
 });
 </script>
+
 </body>
 </html>

@@ -2,47 +2,37 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>تطبيق الزبون - المبدع v2</title>
+<title>Taxi App - طلب تاكسي</title>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  margin:0;
-  padding:20px;
-  background:#f0f4f8;
+html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
+#map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
+
+#bookingForm {
+  position:absolute;
+  top:20px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:2;
+  background: rgba(255,255,255,0.95);
+  padding:15px;
+  border-radius:10px;
+  width:90%;
+  max-width:400px;
+  max-height:80vh;
+  overflow-y:auto;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
 }
 
-input, select, button {
-  width: 100%;
-  max-width: 350px;
-  padding:12px;
-  margin:10px auto;
-  display:block;
-  font-size:18px;
-  border-radius:8px;
-  border:1px solid #ccc;
-}
-
-button {
-  background:#2563eb;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
-
-#price {
-  font-size:20px;
-  font-weight:bold;
-  margin-top:10px;
-}
+input, select, button { width:100%; margin:8px 0; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box; }
+button { background:#2563eb; color:white; border:none; cursor:pointer; font-weight:bold; }
 </style>
 </head>
 <body>
 
-<h2>طلب تاكسي 🚕</h2>
+<div id="map"></div>
 
-<input id="name" type="text" placeholder="الاسم">
-<input id="phone" type="tel" placeholder="رقم الهاتف">
-
+<div id="bookingForm">
+<h3>طلب تاكسي 🚕</h3>
 <select id="from">
   <option value="">من أين؟</option>
   <option value="عمان">عمان</option>
@@ -59,14 +49,18 @@ button {
   <option value="المفرق">المفرق</option>
 </select>
 
+<input id="name" type="text" placeholder="الاسم">
 <input id="passengers" type="number" placeholder="عدد الركاب">
 <input id="date" type="date">
 <input id="time" type="time">
 
+<input id="pickupAddress" type="text" placeholder="عنوان الانطلاق" readonly>
+<input id="dropoffAddress" type="text" placeholder="عنوان الوصول" readonly>
+
 <div id="price">السعر: 0 دينار</div>
 <button id="bookRideBtn">طلب 🚕</button>
+</div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
@@ -80,17 +74,24 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const nameInput = document.getElementById("name");
-const phoneInput = document.getElementById("phone");
 const fromInput = document.getElementById("from");
 const toInput = document.getElementById("to");
+const nameInput = document.getElementById("name");
 const passengersInput = document.getElementById("passengers");
 const dateInput = document.getElementById("date");
 const timeInput = document.getElementById("time");
 const priceLabel = document.getElementById("price");
-const bookBtn = document.getElementById("bookRideBtn");
+const bookRideBtn = document.getElementById("bookRideBtn");
 
-function getPrice(from, to){
+const pickupAddressInput = document.getElementById("pickupAddress");
+const dropoffAddressInput = document.getElementById("dropoffAddress");
+
+let pickupMarker = null;
+let dropoffMarker = null;
+let map;
+let geocoder;
+
+function getPrice(from,to){
   if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
   if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
   if ((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3;
@@ -101,44 +102,89 @@ function getPrice(from, to){
 }
 
 function updatePrice(){
-  const p = Number(passengersInput.value) || 1;
-  const total = getPrice(fromInput.value, toInput.value) * p;
-  priceLabel.innerText = "السعر: " + total + " دينار";
+  let base = getPrice(fromInput.value,toInput.value);
+  let p = Number(passengersInput.value) || 1;
+  if(p>3)p=3;
+  priceLabel.innerText = "السعر: "+(base*p)+" دينار";
 }
 
-fromInput.addEventListener("change", updatePrice);
-toInput.addEventListener("change", updatePrice);
-passengersInput.addEventListener("input", updatePrice);
+fromInput.addEventListener("change",updatePrice);
+toInput.addEventListener("change",updatePrice);
+passengersInput.addEventListener("input",updatePrice);
 
-bookBtn.addEventListener("click", ()=>{
-  const name = nameInput.value;
-  const phone = phoneInput.value;
-  const from = fromInput.value;
-  const to = toInput.value;
-  const passengers = Number(passengersInput.value);
-  const date = dateInput.value;
-  const time = timeInput.value;
+bookRideBtn.addEventListener("click",()=>{
+  let from = fromInput.value;
+  let to = toInput.value;
+  let name = nameInput.value;
+  let passengers = Number(passengersInput.value);
+  let date = dateInput.value;
+  let time = timeInput.value;
+  let pickupAddress = pickupAddressInput.value;
+  let dropoffAddress = dropoffAddressInput.value;
 
-  if(!name||!phone||!from||!to||!passengers||!date||!time){
-    return alert("أكمل كل الحقول");
+  if(!from || !to || !name || !passengers || !date || !time || !pickupAddress || !dropoffAddress){
+    return alert("عبّي كل الحقول");
   }
 
-  const total = getPrice(from,to) * passengers;
-  if(total===0) return alert("المسار غير مدعوم");
+  let base = getPrice(from,to);
+  if(base===0) return alert("المسار غير مدعوم");
+  if(passengers>3) passengers=3;
+  let total=base*passengers;
 
-  db.ref("orders/order" + Date.now()).set({
-    customer_name: name,
-    customer_phone: phone,
+  db.ref("orders/order"+Date.now()).set({
     pickup_location: from,
     dropoff_location: to,
     passenger_count: passengers,
     pickup_date: date,
     pickup_time: time,
+    customer_name: name,
+    pickup_address: pickupAddress,
+    dropoff_address: dropoffAddress,
     price: total,
     status: "new"
-  }).then(()=> alert("تم الحجز 🚕\nالسعر: " + total + " دينار"))
-    .catch(e => alert("فشل الإرسال: "+e.message));
+  });
+
+  alert("تم الحجز 🚕\nالسعر: "+total+" دينار");
+  priceLabel.innerText = "السعر: "+total+" دينار";
 });
+
+// --- Google Maps ---
+function initMap(){
+  map = new google.maps.Map(document.getElementById("map"), {
+    center:{lat:31.963158,lng:35.930359},
+    zoom:7
+  });
+  geocoder = new google.maps.Geocoder();
+
+  map.addListener("click",function(event){
+    const latLng=event.latLng;
+
+    if(!pickupMarker){
+      pickupMarker=new google.maps.Marker({position:latLng,map:map,draggable:true,title:"نقطة الانطلاق"});
+      geocodeLatLng(latLng,pickupAddressInput);
+      pickupMarker.addListener("dragend",function(e){ geocodeLatLng(e.latLng,pickupAddressInput); });
+    } else if(!dropoffMarker){
+      dropoffMarker=new google.maps.Marker({position:latLng,map:map,draggable:true,title:"نقطة الوصول",icon:"http://maps.google.com/mapfiles/ms/icons/blue-dot.png"});
+      geocodeLatLng(latLng,dropoffAddressInput);
+      dropoffMarker.addListener("dragend",function(e){ geocodeLatLng(e.latLng,dropoffAddressInput); });
+    }
+  });
+}
+
+// تحويل الاحداثيات إلى عنوان
+function geocodeLatLng(latlng,input){
+  geocoder.geocode({'location':latlng},function(results,status){
+    if(status==='OK'){
+      if(results[0]){
+        input.value=results[0].formatted_address;
+      } else { input.value=latlng.lat().toFixed(5)+", "+latlng.lng().toFixed(5); }
+    } else { input.value=latlng.lat().toFixed(5)+", "+latlng.lng().toFixed(5); }
+  });
+}
+</script>
+
+<script async defer
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap">
 </script>
 
 </body>
