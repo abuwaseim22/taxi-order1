@@ -5,7 +5,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<title>Taxi App - المبدع V2</title>
+<title>Taxi App</title>
 
 <style>
 body {
@@ -128,7 +128,7 @@ from.onchange = updatePrice;
 to.onchange = updatePrice;
 passengers.oninput = updatePrice;
 
-// تحديد المدينة من العنوان 🔥
+// تحديد المدينة
 function detectCity(address){
   if(address.includes("Amman")) return "عمان";
   if(address.includes("Irbid")) return "اربد";
@@ -154,7 +154,7 @@ function initMap(){
       geocoder.geocode({location:e.latLng},(results,status)=>{
         if(status==="OK" && results[0]){
           let addr = results[0].formatted_address;
-          startAddress.value = addr;
+          document.getElementById("startAddress").value = addr;
 
           let city = detectCity(addr);
           if(city) from.value = city;
@@ -167,7 +167,7 @@ function initMap(){
       geocoder.geocode({location:e.latLng},(results,status)=>{
         if(status==="OK" && results[0]){
           let addr = results[0].formatted_address;
-          endAddress.value = addr;
+          document.getElementById("endAddress").value = addr;
 
           let city = detectCity(addr);
           if(city) to.value = city;
@@ -184,17 +184,23 @@ document.getElementById("book").onclick = ()=>{
   let total = getPrice(from.value,to.value) * (Number(passengers.value)||1);
 
   db.ref("orders/"+Date.now()).set({
-    from: from.value,
-    to: to.value,
+    pickup_location: from.value,
+    dropoff_location: to.value,
     start_address: startAddress.value,
     end_address: endAddress.value,
-    price: total
+    passenger_count: passengers.value,
+    pickup_date: date.value,
+    pickup_time: time.value,
+    customer_name: name.value,
+    price: total,
+    status: "new"
   });
 
   alert("تم الحجز 🚕");
 };
 </script>
 
+<!-- 🔥 أهم سطر -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap" async defer></script>
 
 </body>
