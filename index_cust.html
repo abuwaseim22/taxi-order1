@@ -7,7 +7,7 @@
 html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
 #map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
 
-/* الفورم على الجهة اليسرى */
+/* الفورم على اليسار */
 #bookingForm {
   position:absolute;
   top:20px;
@@ -16,68 +16,56 @@ html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
   background: rgba(255,255,255,0.95);
   padding:15px;
   border-radius:10px;
-  width:300px;
+  width:90%;
+  max-width:400px;
   max-height:80vh;
   overflow-y:auto;
   box-shadow:0 4px 12px rgba(0,0,0,0.2);
 }
 
+/* العناصر داخل الفورم */
 input, select, button { width:100%; margin:8px 0; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box; }
 button { background:#2563eb; color:white; border:none; cursor:pointer; font-weight:bold; }
 
-/* كبسة القائمة الثلاثية */
+/* القائمة الثلاثية */
 #menuBtn {
   position:absolute;
-  top:20px;
-  right:20px;
+  top:0;
+  left:0; /* فوق الفورم على اليسار */
   z-index:3;
-  width:40px;
-  height:40px;
   background:#2563eb;
   color:white;
-  border:none;
-  border-radius:8px;
   font-size:24px;
+  border:none;
+  border-radius:0 0 8px 0;
+  padding:10px 15px;
   cursor:pointer;
 }
 
-/* قائمة جانبية تظهر عند الضغط على الكبسة */
+/* القائمة الجانبية */
 #sideMenu {
   position:absolute;
   top:0;
-  right:-200px; /* مخفية بالافتراض */
+  left:-200px; /* مخفية بالبداية */
   width:200px;
   height:100%;
   background:white;
-  box-shadow:-2px 0 6px rgba(0,0,0,0.3);
+  box-shadow:2px 0 6px rgba(0,0,0,0.3);
   z-index:4;
-  transition: right 0.3s;
+  transition: left 0.3s ease;
   padding:15px;
 }
-#sideMenu a {
-  display:block;
-  margin:10px 0;
-  text-decoration:none;
-  color:#2563eb;
-  font-weight:bold;
-}
+#sideMenu button { margin:10px 0; width:100%; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<button id="menuBtn">&#9776;</button>
-
-<div id="sideMenu">
-  <a href="#">الإعدادات</a>
-  <a href="#">المحفظة</a>
-  <a href="#">رحلاتي</a>
-  <a href="#">تواصل معنا</a>
-</div>
-
+<!-- الفورم -->
 <div id="bookingForm">
 <h3>طلب تاكسي 🚕</h3>
+
 <select id="from">
   <option value="">من أين؟</option>
   <option value="عمان">عمان</option>
@@ -106,6 +94,17 @@ button { background:#2563eb; color:white; border:none; cursor:pointer; font-weig
 <button id="bookRideBtn">طلب 🚕</button>
 </div>
 
+<!-- كبسة القائمة الثلاثية -->
+<button id="menuBtn">☰</button>
+
+<!-- القائمة الجانبية -->
+<div id="sideMenu">
+  <button>الإعدادات</button>
+  <button>المحفظة</button>
+  <button>رحلاتي</button>
+  <button>تواصل معنا</button>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
@@ -119,7 +118,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// فورم وعناصره
 const fromInput = document.getElementById("from");
 const toInput = document.getElementById("to");
 const nameInput = document.getElementById("name");
@@ -128,6 +126,7 @@ const dateInput = document.getElementById("date");
 const timeInput = document.getElementById("time");
 const priceLabel = document.getElementById("price");
 const bookRideBtn = document.getElementById("bookRideBtn");
+
 const pickupAddressInput = document.getElementById("pickupAddress");
 const dropoffAddressInput = document.getElementById("dropoffAddress");
 
@@ -136,7 +135,7 @@ let dropoffMarker = null;
 let map;
 let geocoder;
 
-// حساب السعر
+// --- حساب السعر ---
 function getPrice(from,to){
   if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
   if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
@@ -146,17 +145,19 @@ function getPrice(from,to){
   if ((from==="المفرق"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="المفرق")) return 2.5;
   return 0;
 }
+
 function updatePrice(){
   let base = getPrice(fromInput.value,toInput.value);
   let p = Number(passengersInput.value) || 1;
   if(p>3)p=3;
   priceLabel.innerText = "السعر: "+(base*p)+" دينار";
 }
+
 fromInput.addEventListener("change",updatePrice);
 toInput.addEventListener("change",updatePrice);
 passengersInput.addEventListener("input",updatePrice);
 
-// حجز الرحلة
+// --- حجز الركوب ---
 bookRideBtn.addEventListener("click",()=>{
   let from = fromInput.value;
   let to = toInput.value;
@@ -216,7 +217,6 @@ function initMap(){
   });
 }
 
-// تحويل الاحداثيات إلى عنوان
 function geocodeLatLng(latlng,input){
   geocoder.geocode({'location':latlng},function(results,status){
     if(status==='OK'){
@@ -227,12 +227,19 @@ function geocodeLatLng(latlng,input){
   });
 }
 
-// كبسة القائمة الجانبية
-const menuBtn=document.getElementById("menuBtn");
-const sideMenu=document.getElementById("sideMenu");
-menuBtn.addEventListener("click",()=> {
-  if(sideMenu.style.right==="0px") sideMenu.style.right="-200px";
-  else sideMenu.style.right="0px";
+// --- القائمة الجانبية ---
+const menuBtn = document.getElementById("menuBtn");
+const sideMenu = document.getElementById("sideMenu");
+let menuOpen = false;
+
+menuBtn.addEventListener("click", () => {
+  if(menuOpen){
+    sideMenu.style.left = "-200px";
+    menuOpen = false;
+  } else {
+    sideMenu.style.left = "0px";
+    menuOpen = true;
+  }
 });
 </script>
 
