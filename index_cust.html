@@ -3,67 +3,60 @@
 <head>
 <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Taxi App</title>
+<title>Taxi App - المبدع</title>
 
 <style>
 body {
-  margin:0;
   font-family: Arial;
-  overflow:hidden;
+  text-align: center;
+  padding:15px;
+  background:#f0f4f8;
+  font-size:18px;
 }
 
-#map {
-  position:fixed;
-  width:100%;
-  height:100%;
-}
-
-#panel {
-  position:fixed;
-  bottom:0;
-  width:100%;
-  height:40%;
-  background:white;
-  border-radius:20px 20px 0 0;
+select, input {
   padding:12px;
-  overflow-y:auto;
-}
-
-input, select {
+  margin:10px auto;
   width:95%;
-  padding:12px;
-  margin:8px auto;
-  display:block;
-  border-radius:8px;
+  max-width:400px;
+  border-radius:10px;
   border:1px solid #ccc;
+  display:block;
   font-size:16px;
 }
 
 button {
-  width:90%;
-  padding:12px;
+  padding:14px;
   background:#2563eb;
   color:white;
   border:none;
   border-radius:10px;
-  font-size:16px;
+  font-size:18px;
+  width:80%;
+  max-width:250px;
 }
 
 #price {
-  text-align:center;
-  font-size:18px;
+  font-size:20px;
   font-weight:bold;
+  margin-top:10px;
 }
+
+#map {
+  width:95%;
+  height:300px;
+  margin:15px auto;
+  border-radius:12px;
+}
+
 </style>
 </head>
 
 <body>
 
-<div id="map"></div>
-
-<div id="panel">
+<h2>طلب تاكسي 🚕</h2>
 
 <select id="from">
   <option value="">من أين؟</option>
@@ -86,14 +79,14 @@ button {
 <input id="date" type="date">
 <input id="time" type="time">
 
-<div id="price">السعر: 0</div>
+<div id="price">السعر: 0 دينار</div>
 
-<input id="startAddress" placeholder="عنوان الانطلاق" readonly>
-<input id="endAddress" placeholder="عنوان الوصول" readonly>
+<div id="map"></div>
 
-<button id="book">اطلب 🚕</button>
+<input id="startAddress" placeholder="عنوان الانطلاق التفصيلي" readonly>
+<input id="endAddress" placeholder="عنوان الوصول التفصيلي" readonly>
 
-</div>
+<button id="bookRideBtn">طلب 🚕</button>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -121,21 +114,12 @@ function getPrice(from, to){
 function updatePrice(){
   let p = Number(passengers.value) || 1;
   let total = getPrice(from.value,to.value) * p;
-  document.getElementById("price").innerText = "السعر: " + total;
+  price.innerText = "السعر: " + total + " دينار";
 }
 
 from.onchange = updatePrice;
 to.onchange = updatePrice;
 passengers.oninput = updatePrice;
-
-// تحديد المدينة
-function detectCity(address){
-  if(address.includes("Amman")) return "عمان";
-  if(address.includes("Irbid")) return "اربد";
-  if(address.includes("Zarqa")) return "الزرقاء";
-  if(address.includes("Mafraq")) return "المفرق";
-  return "";
-}
 
 // الخريطة
 let map, startMarker, endMarker, geocoder;
@@ -152,27 +136,15 @@ function initMap(){
     if(!startMarker){
       startMarker = new google.maps.Marker({position:e.latLng,map});
       geocoder.geocode({location:e.latLng},(results,status)=>{
-        if(status==="OK" && results[0]){
-          let addr = results[0].formatted_address;
-          document.getElementById("startAddress").value = addr;
-
-          let city = detectCity(addr);
-          if(city) from.value = city;
-
-          updatePrice();
+        if(status==="OK"){
+          startAddress.value = results[0].formatted_address;
         }
       });
     } else if(!endMarker){
       endMarker = new google.maps.Marker({position:e.latLng,map});
       geocoder.geocode({location:e.latLng},(results,status)=>{
-        if(status==="OK" && results[0]){
-          let addr = results[0].formatted_address;
-          document.getElementById("endAddress").value = addr;
-
-          let city = detectCity(addr);
-          if(city) to.value = city;
-
-          updatePrice();
+        if(status==="OK"){
+          endAddress.value = results[0].formatted_address;
         }
       });
     }
@@ -180,10 +152,10 @@ function initMap(){
 }
 
 // الحجز
-document.getElementById("book").onclick = ()=>{
+bookRideBtn.onclick = ()=>{
   let total = getPrice(from.value,to.value) * (Number(passengers.value)||1);
 
-  db.ref("orders/"+Date.now()).set({
+  db.ref("orders/order"+Date.now()).set({
     pickup_location: from.value,
     dropoff_location: to.value,
     start_address: startAddress.value,
@@ -200,8 +172,7 @@ document.getElementById("book").onclick = ()=>{
 };
 </script>
 
-<!-- 🔥 أهم سطر -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap"></script>
 
 </body>
 </html>
