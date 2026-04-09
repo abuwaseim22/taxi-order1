@@ -2,177 +2,146 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Taxi App - المبدع</title>
-
+<title>Taxi App</title>
 <style>
-body {
-  font-family: Arial;
-  text-align: center;
-  padding:15px;
-  background:#f0f4f8;
-  font-size:18px;
-}
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+  }
 
-select, input {
-  padding:12px;
-  margin:10px auto;
-  width:95%;
-  max-width:400px;
-  border-radius:10px;
-  border:1px solid #ccc;
-  display:block;
-  font-size:16px;
-}
+  #map {
+    height: 100%;
+    width: 100%;
+  }
 
-button {
-  padding:14px;
-  background:#2563eb;
-  color:white;
-  border:none;
-  border-radius:10px;
-  font-size:18px;
-  width:80%;
-  max-width:250px;
-}
+  #formOverlay {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.95);
+    padding: 10px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 350px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    z-index: 10;
+  }
 
-#price {
-  font-size:20px;
-  font-weight:bold;
-  margin-top:10px;
-}
+  #formOverlay input, #formOverlay select, #formOverlay button {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
 
-#map {
-  width:95%;
-  height:300px;
-  margin:15px auto;
-  border-radius:12px;
-}
-
+  #bookRideBtn {
+    background: #2563eb;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
 </style>
 </head>
-
 <body>
-
-<h2>طلب تاكسي 🚕</h2>
-
-<select id="from">
-  <option value="">من أين؟</option>
-  <option value="عمان">عمان</option>
-  <option value="اربد">اربد</option>
-  <option value="الزرقاء">الزرقاء</option>
-  <option value="المفرق">المفرق</option>
-</select>
-
-<select id="to">
-  <option value="">إلى أين؟</option>
-  <option value="عمان">عمان</option>
-  <option value="اربد">اربد</option>
-  <option value="الزرقاء">الزرقاء</option>
-  <option value="المفرق">المفرق</option>
-</select>
-
-<input id="name" placeholder="الاسم">
-<input id="passengers" type="number" placeholder="عدد الركاب">
-<input id="date" type="date">
-<input id="time" type="time">
-
-<div id="price">السعر: 0 دينار</div>
 
 <div id="map"></div>
 
-<input id="startAddress" placeholder="عنوان الانطلاق التفصيلي" readonly>
-<input id="endAddress" placeholder="عنوان الوصول التفصيلي" readonly>
-
-<button id="bookRideBtn">طلب 🚕</button>
+<div id="formOverlay">
+  <input id="name" type="text" placeholder="الاسم">
+  <input id="phone" type="tel" placeholder="رقم الهاتف">
+  <select id="from">
+    <option value="">من أين؟</option>
+    <option value="عمان">عمان</option>
+    <option value="اربد">اربد</option>
+    <option value="الزرقاء">الزرقاء</option>
+    <option value="المفرق">المفرق</option>
+  </select>
+  <select id="to">
+    <option value="">إلى أين؟</option>
+    <option value="عمان">عمان</option>
+    <option value="اربد">اربد</option>
+    <option value="الزرقاء">الزرقاء</option>
+    <option value="المفرق">المفرق</option>
+  </select>
+  <button id="bookRideBtn">طلب 🚕</button>
+</div>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
-  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  // 🔑 Firebase Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+    authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+    databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+    projectId: "abuwaseim-1e6a5"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-// السعر
-function getPrice(from, to){
-  if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
-  if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
-  if ((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3;
-  if ((from==="اربد"&&to==="المفرق")||(from==="المفرق"&&to==="اربد")) return 2.5;
-  if ((from==="اربد"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="اربد")) return 3;
-  if ((from==="المفرق"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="المفرق")) return 2.5;
-  return 0;
-}
+  // Elements
+  const nameInput = document.getElementById("name");
+  const phoneInput = document.getElementById("phone");
+  const fromInput = document.getElementById("from");
+  const toInput = document.getElementById("to");
+  const bookBtn = document.getElementById("bookRideBtn");
 
-function updatePrice(){
-  let p = Number(passengers.value) || 1;
-  let total = getPrice(from.value,to.value) * p;
-  price.innerText = "السعر: " + total + " دينار";
-}
+  // Price function
+  function getPrice(from, to){
+    if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
+    if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
+    if ((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3;
+    if ((from==="اربد"&&to==="المفرق")||(from==="المفرق"&&to==="اربد")) return 2.5;
+    if ((from==="اربد"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="اربد")) return 3;
+    if ((from==="المفرق"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="المفرق")) return 2.5;
+    return 0;
+  }
 
-from.onchange = updatePrice;
-to.onchange = updatePrice;
-passengers.oninput = updatePrice;
+  bookBtn.addEventListener("click", () => {
+    let name = nameInput.value;
+    let phone = phoneInput.value;
+    let from = fromInput.value;
+    let to = toInput.value;
 
-// الخريطة
-let map, startMarker, endMarker, geocoder;
+    if(!name || !phone || !from || !to) return alert("أكمل كل الحقول");
 
-function initMap(){
-  map = new google.maps.Map(document.getElementById("map"), {
-    center:{lat:31.95,lng:35.93},
-    zoom:7
+    let total = getPrice(from, to);
+    if(total === 0) return alert("المسار غير مدعوم");
+
+    db.ref("orders/order" + Date.now()).set({
+      customer_name: name,
+      customer_phone: phone,
+      pickup_location: from,
+      dropoff_location: to,
+      price: total,
+      status: "new"
+    }).then(() => alert("تم الحجز 🚕\nالسعر: " + total + " دينار"))
+      .catch(e => alert("فشل الإرسال: " + e.message));
   });
-
-  geocoder = new google.maps.Geocoder();
-
-  map.addListener("click",(e)=>{
-    if(!startMarker){
-      startMarker = new google.maps.Marker({position:e.latLng,map});
-      geocoder.geocode({location:e.latLng},(results,status)=>{
-        if(status==="OK"){
-          startAddress.value = results[0].formatted_address;
-        }
-      });
-    } else if(!endMarker){
-      endMarker = new google.maps.Marker({position:e.latLng,map});
-      geocoder.geocode({location:e.latLng},(results,status)=>{
-        if(status==="OK"){
-          endAddress.value = results[0].formatted_address;
-        }
-      });
-    }
-  });
-}
-
-// الحجز
-bookRideBtn.onclick = ()=>{
-  let total = getPrice(from.value,to.value) * (Number(passengers.value)||1);
-
-  db.ref("orders/order"+Date.now()).set({
-    pickup_location: from.value,
-    dropoff_location: to.value,
-    start_address: startAddress.value,
-    end_address: endAddress.value,
-    passenger_count: passengers.value,
-    pickup_date: date.value,
-    pickup_time: time.value,
-    customer_name: name.value,
-    price: total,
-    status: "new"
-  });
-
-  alert("تم الحجز 🚕");
-};
 </script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap"></script>
+<!-- Google Maps -->
+<script>
+  let map;
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 31.95, lng: 35.91 }, // عمان تقريبا
+      zoom: 7
+    });
+  }
+</script>
+
+<script async
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap">
+</script>
 
 </body>
 </html>
