@@ -2,134 +2,70 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Taxi Driver - المبدع</title>
+<title>تطبيق السائق - المبدع v2</title>
 <style>
 body {
+  font-family: Arial,sans-serif;
   margin:0;
-  font-family: Arial, sans-serif;
-}
-
-#map {
-  position:fixed;
-  top:0;
-  width:100%;
-  height:50%;
-}
-
-#ordersContainer {
-  position:fixed;
-  bottom:0;
-  width:100%;
-  height:50%;
-  overflow-y:auto;
+  padding:20px;
   background:#f0f4f8;
-  padding:10px;
 }
 
 .orderCard {
-  border:1px solid #ccc;
+  background:white;
+  padding:15px;
+  margin:10px 0;
   border-radius:10px;
-  padding:12px;
-  margin:8px 0;
-  background:#fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow:0 0 5px rgba(0,0,0,0.2);
 }
 
-.orderCard strong {
+.orderCard h3{
+  margin:0 0 5px 0;
+}
+
+.orderCard p{
+  margin:3px 0;
   font-size:16px;
-}
-
-.orderCard p {
-  font-size:14px;
-  margin:4px 0;
 }
 </style>
 </head>
 <body>
-
-<div id="map"></div>
+<h2>طلبات جديدة 🚕</h2>
 <div id="ordersContainer"></div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-// 🔑 إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
-  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com"
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// --- خريطة السائق ---
-let map, markers = [], geocoder;
+const container = document.getElementById("ordersContainer");
 
-function initMap(){
-  map = new google.maps.Map(document.getElementById("map"), {
-    center:{lat:31.95,lng:35.93},
-    zoom:7
-  });
-  geocoder = new google.maps.Geocoder();
-}
-
-// --- تحميل الطلبات الجديدة ---
-function loadNewOrders(){
-  db.ref("orders").orderByChild("status").equalTo("new").on("value", snapshot=>{
-    const container = document.getElementById("ordersContainer");
-    container.innerHTML = ""; // فرغ الحاوية
-    // إزالة الماركرات القديمة
-    markers.forEach(m=>m.setMap(null));
-    markers = [];
-
-    snapshot.forEach(orderSnap=>{
-      const order = orderSnap.val();
-
-      // البطاقة
+db.ref("orders").on("value", snapshot=>{
+  container.innerHTML="";
+  snapshot.forEach(snap=>{
+    const order = snap.val();
+    if(order.status==="new"){
       const card = document.createElement("div");
-      card.className = "orderCard";
+      card.className="orderCard";
       card.innerHTML = `
-        <strong>${order.customer_name}</strong> - ${order.pickup_location} ➡ ${order.dropoff_location}
-        <p>ركاب: ${order.passenger_count} | السعر: ${order.price} دينار</p>
-        <p>التاريخ: ${order.pickup_date} ${order.pickup_time}</p>
+        <h3>${order.customer_name} 🚕 ${order.pickup_location} → ${order.dropoff_location}</h3>
+        <p>هاتف: ${order.customer_phone}</p>
+        <p>ركاب: ${order.passenger_count}</p>
+        <p>التاريخ: ${order.pickup_date} | الوقت: ${order.pickup_time}</p>
+        <p>السعر: ${order.price} دينار</p>
       `;
-
       container.appendChild(card);
-
-      // الماركر على الخريطة
-      geocoder.geocode({address: order.pickup_location}, (results, status)=>{
-        if(status==="OK" && results[0]){
-          const m = new google.maps.Marker({
-            position: results[0].geometry.location,
-            map,
-            label: "🟢"
-          });
-          markers.push(m);
-        }
-      });
-
-      geocoder.geocode({address: order.dropoff_location}, (results, status)=>{
-        if(status==="OK" && results[0]){
-          const m = new google.maps.Marker({
-            position: results[0].geometry.location,
-            map,
-            label: "🔴"
-          });
-          markers.push(m);
-        }
-      });
-
-    });
+    }
   });
-}
-
-initMap();
-loadNewOrders();
+});
 </script>
-
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap" async defer></script>
-
 </body>
 </html>
