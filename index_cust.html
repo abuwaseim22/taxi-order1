@@ -7,17 +7,16 @@
 html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
 #map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
 
+/* الفورم على الجهة اليسرى */
 #bookingForm {
   position:absolute;
   top:20px;
-  left:50%;
-  transform:translateX(-50%);
+  left:20px;
   z-index:2;
   background: rgba(255,255,255,0.95);
   padding:15px;
   border-radius:10px;
-  width:90%;
-  max-width:400px;
+  width:300px;
   max-height:80vh;
   overflow-y:auto;
   box-shadow:0 4px 12px rgba(0,0,0,0.2);
@@ -25,11 +24,57 @@ html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
 
 input, select, button { width:100%; margin:8px 0; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box; }
 button { background:#2563eb; color:white; border:none; cursor:pointer; font-weight:bold; }
+
+/* كبسة القائمة الثلاثية */
+#menuBtn {
+  position:absolute;
+  top:20px;
+  right:20px;
+  z-index:3;
+  width:40px;
+  height:40px;
+  background:#2563eb;
+  color:white;
+  border:none;
+  border-radius:8px;
+  font-size:24px;
+  cursor:pointer;
+}
+
+/* قائمة جانبية تظهر عند الضغط على الكبسة */
+#sideMenu {
+  position:absolute;
+  top:0;
+  right:-200px; /* مخفية بالافتراض */
+  width:200px;
+  height:100%;
+  background:white;
+  box-shadow:-2px 0 6px rgba(0,0,0,0.3);
+  z-index:4;
+  transition: right 0.3s;
+  padding:15px;
+}
+#sideMenu a {
+  display:block;
+  margin:10px 0;
+  text-decoration:none;
+  color:#2563eb;
+  font-weight:bold;
+}
 </style>
 </head>
 <body>
 
 <div id="map"></div>
+
+<button id="menuBtn">&#9776;</button>
+
+<div id="sideMenu">
+  <a href="#">الإعدادات</a>
+  <a href="#">المحفظة</a>
+  <a href="#">رحلاتي</a>
+  <a href="#">تواصل معنا</a>
+</div>
 
 <div id="bookingForm">
 <h3>طلب تاكسي 🚕</h3>
@@ -66,7 +111,7 @@ button { background:#2563eb; color:white; border:none; cursor:pointer; font-weig
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  apiKey: "AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
   databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
   projectId: "abuwaseim-1e6a5"
@@ -74,6 +119,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// فورم وعناصره
 const fromInput = document.getElementById("from");
 const toInput = document.getElementById("to");
 const nameInput = document.getElementById("name");
@@ -82,7 +128,6 @@ const dateInput = document.getElementById("date");
 const timeInput = document.getElementById("time");
 const priceLabel = document.getElementById("price");
 const bookRideBtn = document.getElementById("bookRideBtn");
-
 const pickupAddressInput = document.getElementById("pickupAddress");
 const dropoffAddressInput = document.getElementById("dropoffAddress");
 
@@ -91,6 +136,7 @@ let dropoffMarker = null;
 let map;
 let geocoder;
 
+// حساب السعر
 function getPrice(from,to){
   if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
   if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
@@ -100,18 +146,17 @@ function getPrice(from,to){
   if ((from==="المفرق"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="المفرق")) return 2.5;
   return 0;
 }
-
 function updatePrice(){
   let base = getPrice(fromInput.value,toInput.value);
   let p = Number(passengersInput.value) || 1;
   if(p>3)p=3;
   priceLabel.innerText = "السعر: "+(base*p)+" دينار";
 }
-
 fromInput.addEventListener("change",updatePrice);
 toInput.addEventListener("change",updatePrice);
 passengersInput.addEventListener("input",updatePrice);
 
+// حجز الرحلة
 bookRideBtn.addEventListener("click",()=>{
   let from = fromInput.value;
   let to = toInput.value;
@@ -181,6 +226,14 @@ function geocodeLatLng(latlng,input){
     } else { input.value=latlng.lat().toFixed(5)+", "+latlng.lng().toFixed(5); }
   });
 }
+
+// كبسة القائمة الجانبية
+const menuBtn=document.getElementById("menuBtn");
+const sideMenu=document.getElementById("sideMenu");
+menuBtn.addEventListener("click",()=> {
+  if(sideMenu.style.right==="0px") sideMenu.style.right="-200px";
+  else sideMenu.style.right="0px";
+});
 </script>
 
 <script async defer
