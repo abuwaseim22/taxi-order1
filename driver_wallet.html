@@ -3,38 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <title>محفظة السائق</title>
-<style>
-html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; background:#f0f2f5; }
-.wallet-container {
-  max-width:400px;
-  margin:30px auto;
-  background:white;
-  border-radius:12px;
-  padding:20px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.2);
-}
-.wallet-container h2 { font-size:28px; margin-bottom:15px; color:#2563eb; text-align:center; }
-.wallet-container .balance { font-size:32px; font-weight:bold; margin-bottom:20px; text-align:center; color:#16a34a; }
-.wallet-container .transactions { list-style:none; padding:0; margin:0; max-height:400px; overflow-y:auto; }
-.wallet-container .transactions li {
-  padding:12px;
-  border-bottom:1px solid #eee;
-  font-size:16px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.wallet-container .transactions li span { display:block; }
-.wallet-container .transactions li .price { font-weight:bold; color:#f97316; }
-</style>
 </head>
+
 <body>
 
-<div class="wallet-container">
-  <h2>محفظة السائق 💰</h2>
-  <div class="balance" id="driverBalance">0 دينار</div>
-  <ul class="transactions" id="transactionList"></ul>
-</div>
+<h2>محفظة السائق 💰</h2>
+<h1 id="balance">0 JD</h1>
+<ul id="list"></ul>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -46,45 +21,31 @@ const firebaseConfig = {
   databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
   projectId: "abuwaseim-1e6a5"
 };
+
 firebase.initializeApp(firebaseConfig);
 
-const driverId = "driver123"; // ضع UID السائق هنا
-const driverBalanceEl = document.getElementById("driverBalance");
-const transactionListEl = document.getElementById("transactionList");
+const driverId = "driver123";
 
-// تحديث واجهة المحفظة
-function updateWalletUI(){
-  firebase.database().ref("wallets/drivers/"+driverId).once("value")
-  .then(snapshot => {
-    const data = snapshot.val() || {balance:0, transactions:{}};
-    driverBalanceEl.innerText = data.balance.toFixed(2) + " دينار";
+const bal = document.getElementById("balance");
+const list = document.getElementById("list");
 
-    transactionListEl.innerHTML = "";
-    // ترتيب المعاملات حسب الوقت من الأحدث للأقدم
-    const txns = Object.entries(data.transactions || {}).sort((a,b)=>b[0]-a[0]);
-    txns.forEach(([key,t])=>{
-      const li = document.createElement("li");
-      const infoSpan = document.createElement("span");
-      infoSpan.innerText = t.description || "رحلة";
+firebase.database()
+.ref("wallets/drivers/"+driverId)
+.on("value", snap=>{
 
-      const dateSpan = document.createElement("span");
-      dateSpan.innerText = t.date;
+  const data = snap.val() || {balance:0, transactions:{}};
 
-      const priceSpan = document.createElement("span");
-      priceSpan.className = "price";
-      if(t.credit) priceSpan.innerText = "+" + t.credit.toFixed(2) + " د";
-      else if(t.deduction) priceSpan.innerText = "-" + t.deduction.toFixed(2) + " د";
+  bal.innerText = data.balance + " JD";
 
-      li.appendChild(infoSpan);
-      li.appendChild(dateSpan);
-      li.appendChild(priceSpan);
-      transactionListEl.appendChild(li);
-    });
+  list.innerHTML = "";
+
+  Object.entries(data.transactions || {})
+  .reverse()
+  .forEach(([k,v])=>{
+    list.innerHTML += `<li>${v.description} - ${v.credit} JD</li>`;
   });
-}
 
-// استمع لأي تغيير مباشر في محفظة السائق
-firebase.database().ref("wallets/drivers/"+driverId).on("value", updateWalletUI);
+});
 </script>
 
 </body>

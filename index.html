@@ -2,109 +2,116 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>واجهة السائق</title>
+<title>السائق</title>
+
 <style>
-html, body { height:100%; margin:0; padding:0; font-family: Arial, sans-serif; overflow:hidden; }
-body { background:#f0f4f8; }
-
-#ordersContainer {
-  position:absolute;
-  top:0; left:0; width:100%; height:100%; overflow-y:auto; padding:20px;
-  box-sizing:border-box;
+body { font-family: Arial; background:#f0f0f0; }
+.order {
+  background:white;
+  margin:10px;
+  padding:10px;
+  border-radius:10px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.2);
 }
-
-.order-card {
-  background:#ffffff;
-  border-radius:12px;
-  padding:20px;
-  margin-bottom:15px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.2);
-  font-size:18px;
-}
-
-.order-card h3 {
-  font-size:22px;
-  margin:0 0 10px 0;
-}
-
-.order-card p {
-  margin:5px 0;
-}
-
-.order-card button {
-  background:#28a745;
+button {
+  background:green;
   color:white;
+  padding:10px;
   border:none;
-  padding:12px;
-  border-radius:8px;
-  cursor:pointer;
-  font-size:18px;
-  margin-top:10px;
   width:100%;
 }
 </style>
 </head>
+
 <body>
 
-<div id="ordersContainer"></div>
+<h2>طلبات السائق 🚕</h2>
+<div id="orders"></div>
+
+<audio id="sound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-// إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
   databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
   projectId: "abuwaseim-1e6a5"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const ordersContainer = document.getElementById("ordersContainer");
+const ordersDiv = document.getElementById("orders");
+const sound = document.getElementById("sound");
 
-function loadOrders(){
-  db.ref("orders").orderByChild("status").equalTo("new").on("value", snapshot=>{
-    ordersContainer.innerHTML="";
-    snapshot.forEach(child=>{
-      const orderId = child.key;
-      const order = child.val();
+// 🔥 REAL TIME
+db.ref("orders").orderByChild("status").equalTo("sent")
+.on("value", snap=>{
 
-      // قلب المسار عمان ↔ اربد تلقائياً
-      let displayFrom = order.pickup_location;
-      let displayTo = order.dropoff_location;
-      if((order.pickup_location==="عمان" && order.dropoff_location==="اربد") ||
-         (order.pickup_location==="اربد" && order.dropoff_location==="عمان")){
-        displayFrom = order.dropoff_location;
-        displayTo = order.pickup_location;
-      }
+  ordersDiv.innerHTML="";
 
-      let cardHTML = `
-      <div class="order-card">
-        <h3>${displayFrom} → ${displayTo}</h3>
-        <p><strong>الركاب:</strong> ${order.passenger_count}</p>
-        <p><strong>الوقت:</strong> ${order.pickup_date} ${order.pickup_time}</p>
-        <p><strong>الاسم:</strong> ${order.customer_name}</p>
-        <p><strong>عنوان الانطلاق:</strong> ${order.pickup_address}</p>
-        <p><strong>عنوان الوصول:</strong> ${order.dropoff_address}</p>
-        <p><strong>السعر:</strong> ${order.price} دينار</p>
-        <button onclick="acceptOrder('${orderId}')">قبول الطلب</button>
-      </div>`;
-      ordersContainer.innerHTML += cardHTML;
+  if(snap.exists()){
+    sound.play();
+  }
+
+  snap.forEach(child=>{
+    const id = child.key;
+    const o = child.val();
+
+    ordersDiv.innerHTML += `
+      <div class="order">
+        <p>${o.customer_name}</p>
+        <p>${o.pickup_location} → ${o.dropoff_location}</p>
+        <p>${o.price} JD</p>
+        <button onclick="accept('${id}')">قبول</button>
+      </div>
+    `;
+  });
+});
+
+// 🚕 Accept (حماية + Wallet)
+function accept(id){
+
+  const ref = db.ref("orders/"+id);
+
+  ref.once("value").then(snap=>{
+    const o = snap.val();
+
+    if(o.status !== "sent"){
+      alert("تم أخذه من سائق آخر ❌");
+      return;
+    }
+
+    ref.update({
+      status:"accepted",
+      driver_id:"driver123"
     });
+
+    // 💰 wallet
+    const wallet = db.ref("wallets/drivers/driver123");
+
+    wallet.once("value").then(w=>{
+      let data = w.val() || {balance:0, transactions:{}};
+
+      data.balance += o.price;
+
+      const t = Date.now();
+
+      data.transactions[t] = {
+        description: o.pickup_location + " → " + o.dropoff_location,
+        date: new Date().toLocaleString(),
+        credit: o.price
+      };
+
+      wallet.set(data);
+    });
+
+    alert("تم قبول الطلب 🚕");
   });
 }
-
-function acceptOrder(orderId){
-  if(confirm("هل تريد قبول هذا الطلب؟")){
-    db.ref("orders/"+orderId).update({status:"accepted"});
-    alert("تم قبول الطلب 🚕");
-  }
-}
-
-// تحميل الطلبات عند فتح الصفحة
-loadOrders();
 </script>
 
 </body>

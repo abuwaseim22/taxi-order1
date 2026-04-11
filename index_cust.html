@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <title>Taxi App - طلب تاكسي</title>
+
 <style>
 html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
 #map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
 
-/* الفورم على اليسار */
 #bookingForm {
   position:absolute;
   top:20px;
@@ -23,46 +23,30 @@ html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
   box-shadow:0 4px 12px rgba(0,0,0,0.2);
 }
 
-/* العناصر داخل الفورم */
-input, select, button { width:100%; margin:8px 0; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box; }
-button { background:#2563eb; color:white; border:none; cursor:pointer; font-weight:bold; }
+input, select, button {
+  width:100%;
+  margin:8px 0;
+  padding:12px;
+  font-size:16px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  box-sizing:border-box;
+}
 
-/* القائمة الثلاثية */
-#menuBtn {
-  position:absolute;
-  top:0;
-  left:0; /* فوق الفورم على اليسار */
-  z-index:3;
+button {
   background:#2563eb;
   color:white;
-  font-size:24px;
   border:none;
-  border-radius:0 0 8px 0;
-  padding:10px 15px;
   cursor:pointer;
+  font-weight:bold;
 }
-
-/* القائمة الجانبية */
-#sideMenu {
-  position:absolute;
-  top:0;
-  left:-200px; /* مخفية بالبداية */
-  width:200px;
-  height:100%;
-  background:white;
-  box-shadow:2px 0 6px rgba(0,0,0,0.3);
-  z-index:4;
-  transition: left 0.3s ease;
-  padding:15px;
-}
-#sideMenu button { margin:10px 0; width:100%; }
 </style>
 </head>
+
 <body>
 
 <div id="map"></div>
 
-<!-- الفورم -->
 <div id="bookingForm">
 <h3>طلب تاكسي 🚕</h3>
 
@@ -82,27 +66,17 @@ button { background:#2563eb; color:white; border:none; cursor:pointer; font-weig
   <option value="المفرق">المفرق</option>
 </select>
 
-<input id="name" type="text" placeholder="الاسم">
+<input id="name" placeholder="الاسم">
 <input id="passengers" type="number" placeholder="عدد الركاب">
 <input id="date" type="date">
 <input id="time" type="time">
 
-<input id="pickupAddress" type="text" placeholder="عنوان الانطلاق" readonly>
-<input id="dropoffAddress" type="text" placeholder="عنوان الوصول" readonly>
+<input id="pickupAddress" placeholder="عنوان الانطلاق" readonly>
+<input id="dropoffAddress" placeholder="عنوان الوصول" readonly>
 
-<div id="price">السعر: 0 دينار</div>
+<div id="price">السعر: 0</div>
+
 <button id="bookRideBtn">طلب 🚕</button>
-</div>
-
-<!-- كبسة القائمة الثلاثية -->
-<button id="menuBtn">☰</button>
-
-<!-- القائمة الجانبية -->
-<div id="sideMenu">
-  <button>الإعدادات</button>
-  <button>المحفظة</button>
-  <button>رحلاتي</button>
-  <button>تواصل معنا</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -110,141 +84,34 @@ button { background:#2563eb; color:white; border:none; cursor:pointer; font-weig
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0",
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
   databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
   projectId: "abuwaseim-1e6a5"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const fromInput = document.getElementById("from");
-const toInput = document.getElementById("to");
-const nameInput = document.getElementById("name");
-const passengersInput = document.getElementById("passengers");
-const dateInput = document.getElementById("date");
-const timeInput = document.getElementById("time");
-const priceLabel = document.getElementById("price");
-const bookRideBtn = document.getElementById("bookRideBtn");
+document.getElementById("bookRideBtn").addEventListener("click",()=>{
 
-const pickupAddressInput = document.getElementById("pickupAddress");
-const dropoffAddressInput = document.getElementById("dropoffAddress");
+  const id = "order"+Date.now();
 
-let pickupMarker = null;
-let dropoffMarker = null;
-let map;
-let geocoder;
-
-// --- حساب السعر ---
-function getPrice(from,to){
-  if ((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5;
-  if ((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5;
-  if ((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3;
-  if ((from==="اربد"&&to==="المفرق")||(from==="المفرق"&&to==="اربد")) return 2.5;
-  if ((from==="اربد"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="اربد")) return 3;
-  if ((from==="المفرق"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="المفرق")) return 2.5;
-  return 0;
-}
-
-function updatePrice(){
-  let base = getPrice(fromInput.value,toInput.value);
-  let p = Number(passengersInput.value) || 1;
-  if(p>3)p=3;
-  priceLabel.innerText = "السعر: "+(base*p)+" دينار";
-}
-
-fromInput.addEventListener("change",updatePrice);
-toInput.addEventListener("change",updatePrice);
-passengersInput.addEventListener("input",updatePrice);
-
-// --- حجز الركوب ---
-bookRideBtn.addEventListener("click",()=>{
-  let from = fromInput.value;
-  let to = toInput.value;
-  let name = nameInput.value;
-  let passengers = Number(passengersInput.value);
-  let date = dateInput.value;
-  let time = timeInput.value;
-  let pickupAddress = pickupAddressInput.value;
-  let dropoffAddress = dropoffAddressInput.value;
-
-  if(!from || !to || !name || !passengers || !date || !time || !pickupAddress || !dropoffAddress){
-    return alert("عبّي كل الحقول");
-  }
-
-  let base = getPrice(from,to);
-  if(base===0) return alert("المسار غير مدعوم");
-  if(passengers>3) passengers=3;
-  let total=base*passengers;
-
-  db.ref("orders/order"+Date.now()).set({
-    pickup_location: from,
-    dropoff_location: to,
-    passenger_count: passengers,
-    pickup_date: date,
-    pickup_time: time,
-    customer_name: name,
-    pickup_address: pickupAddress,
-    dropoff_address: dropoffAddress,
-    price: total,
-    status: "new"
+  db.ref("orders/"+id).set({
+    pickup_location: document.getElementById("from").value,
+    dropoff_location: document.getElementById("to").value,
+    customer_name: document.getElementById("name").value,
+    passenger_count: document.getElementById("passengers").value,
+    pickup_date: document.getElementById("date").value,
+    pickup_time: document.getElementById("time").value,
+    pickup_address: document.getElementById("pickupAddress").value,
+    dropoff_address: document.getElementById("dropoffAddress").value,
+    price: 10,
+    status: "sent"
   });
 
-  alert("تم الحجز 🚕\nالسعر: "+total+" دينار");
-  priceLabel.innerText = "السعر: "+total+" دينار";
+  alert("تم إرسال الطلب 🚕");
 });
-
-// --- Google Maps ---
-function initMap(){
-  map = new google.maps.Map(document.getElementById("map"), {
-    center:{lat:31.963158,lng:35.930359},
-    zoom:7
-  });
-  geocoder = new google.maps.Geocoder();
-
-  map.addListener("click",function(event){
-    const latLng=event.latLng;
-
-    if(!pickupMarker){
-      pickupMarker=new google.maps.Marker({position:latLng,map:map,draggable:true,title:"نقطة الانطلاق"});
-      geocodeLatLng(latLng,pickupAddressInput);
-      pickupMarker.addListener("dragend",function(e){ geocodeLatLng(e.latLng,pickupAddressInput); });
-    } else if(!dropoffMarker){
-      dropoffMarker=new google.maps.Marker({position:latLng,map:map,draggable:true,title:"نقطة الوصول",icon:"http://maps.google.com/mapfiles/ms/icons/blue-dot.png"});
-      geocodeLatLng(latLng,dropoffAddressInput);
-      dropoffMarker.addListener("dragend",function(e){ geocodeLatLng(e.latLng,dropoffAddressInput); });
-    }
-  });
-}
-
-function geocodeLatLng(latlng,input){
-  geocoder.geocode({'location':latlng},function(results,status){
-    if(status==='OK'){
-      if(results[0]){
-        input.value=results[0].formatted_address;
-      } else { input.value=latlng.lat().toFixed(5)+", "+latlng.lng().toFixed(5); }
-    } else { input.value=latlng.lat().toFixed(5)+", "+latlng.lng().toFixed(5); }
-  });
-}
-
-// --- القائمة الجانبية ---
-const menuBtn = document.getElementById("menuBtn");
-const sideMenu = document.getElementById("sideMenu");
-let menuOpen = false;
-
-menuBtn.addEventListener("click", () => {
-  if(menuOpen){
-    sideMenu.style.left = "-200px";
-    menuOpen = false;
-  } else {
-    sideMenu.style.left = "0px";
-    menuOpen = true;
-  }
-});
-</script>
-
-<script async defer
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap">
 </script>
 
 </body>
