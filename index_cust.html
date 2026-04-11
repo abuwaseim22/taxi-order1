@@ -2,11 +2,11 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>الزبون</title>
+<title>طلب تاكسي</title>
 
 <style>
 html, body { height:100%; margin:0; font-family: Arial; }
-#map { position:absolute; top:0; left:0; width:100%; height:100%; }
+#map { position:absolute; top:0; left:0; width:100%; height:100vh; }
 
 #form {
   position:absolute;
@@ -24,6 +24,7 @@ input, select, button {
   padding:10px;
   margin:5px 0;
 }
+button { background:#2563eb; color:white; border:none; }
 </style>
 </head>
 
@@ -35,19 +36,19 @@ input, select, button {
 <h3>طلب تاكسي 🚕</h3>
 
 <select id="from">
-  <option value="">من</option>
-  <option>عمان</option>
-  <option>اربد</option>
-  <option>الزرقاء</option>
-  <option>المفرق</option>
+<option value="">من</option>
+<option>عمان</option>
+<option>اربد</option>
+<option>الزرقاء</option>
+<option>المفرق</option>
 </select>
 
 <select id="to">
-  <option value="">إلى</option>
-  <option>عمان</option>
-  <option>اربد</option>
-  <option>الزرقاء</option>
-  <option>المفرق</option>
+<option value="">إلى</option>
+<option>عمان</option>
+<option>اربد</option>
+<option>الزرقاء</option>
+<option>المفرق</option>
 </select>
 
 <input id="name" placeholder="الاسم">
@@ -55,7 +56,7 @@ input, select, button {
 
 <div id="price">السعر: 0</div>
 
-<button id="send">طلب</button>
+<button id="send">طلب 🚕</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -63,59 +64,68 @@ input, select, button {
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
-  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
-  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
-  projectId: "abuwaseim-1e6a5"
+apiKey:"AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+authDomain:"abuwaseim-1e6a5.firebaseapp.com",
+databaseURL:"https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+projectId:"abuwaseim-1e6a5"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+const fromEl = document.getElementById("from");
+const toEl = document.getElementById("to");
+const nameEl = document.getElementById("name");
+const passengersEl = document.getElementById("passengers");
+const priceEl = document.getElementById("price");
+
 // السعر
-function priceCalc(from,to,p){
-
-  if((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5*p;
-  if((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5*p;
-  if((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3*p;
-
-  return 0;
+function calc(from,to,p){
+if(!from||!to) return 0;
+if((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5*p;
+if((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5*p;
+if((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3*p;
+return 0;
 }
 
-// تحديث السعر
-function updatePrice(){
-  let from = from.value;
-  let to = to.value;
-  let p = Number(passengers.value || 1);
-
-  if(p >= 3) p = 3;
-
-  price.innerText = "السعر: " + priceCalc(from,to,p);
+function update(){
+let p = Number(passengersEl.value||1);
+if(p>3)p=3;
+priceEl.innerText="السعر: "+calc(fromEl.value,toEl.value,p);
 }
 
-from.onchange = updatePrice;
-to.onchange = updatePrice;
-passengers.oninput = updatePrice;
+fromEl.onchange=update;
+toEl.onchange=update;
+passengersEl.oninput=update;
 
-// إرسال الطلب
-send.onclick = () => {
+// إرسال
+document.getElementById("send").onclick=()=>{
+let p = Number(passengersEl.value||1);
+if(p>3)p=3;
 
-  let p = Number(passengers.value || 1);
-  if(p >= 3) p = 3;
+let id="order"+Date.now();
 
-  let id = "order"+Date.now();
+db.ref("orders/"+id).set({
+pickup_location:fromEl.value,
+dropoff_location:toEl.value,
+customer_name:nameEl.value,
+passenger_count:p,
+price:calc(fromEl.value,toEl.value,p),
+status:"sent"
+});
 
-  db.ref("orders/"+id).set({
-    pickup_location: from.value,
-    dropoff_location: to.value,
-    customer_name: name.value,
-    passenger_count: p,
-    price: priceCalc(from.value,to.value,p),
-    status: "sent"
-  });
-
-  alert("تم إرسال الطلب 🚕");
+alert("تم الإرسال 🚕");
 };
+
+function initMap(){
+new google.maps.Map(document.getElementById("map"),{
+center:{lat:31.96,lng:35.93},
+zoom:7
+});
+}
+</script>
+
+<script async defer
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap">
 </script>
 
 </body>
