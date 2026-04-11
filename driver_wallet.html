@@ -2,13 +2,13 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>محفظة السائق</title>
+<title>المحفظة</title>
 </head>
 
 <body>
 
 <h2>محفظة السائق 💰</h2>
-<h1 id="balance">0 JD</h1>
+<h1 id="bal">0 JD</h1>
 <ul id="list"></ul>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -26,25 +26,22 @@ firebase.initializeApp(firebaseConfig);
 
 const driverId = "driver123";
 
-const bal = document.getElementById("balance");
-const list = document.getElementById("list");
-
-firebase.database()
-.ref("wallets/drivers/"+driverId)
+firebase.database().ref("wallets/drivers/"+driverId)
 .on("value", snap=>{
 
-  const data = snap.val() || {balance:0, transactions:{}};
+  let d = snap.val() || {balance:0, transactions:{}};
 
-  bal.innerText = data.balance + " JD";
+  bal.innerText = d.balance + " JD";
 
   list.innerHTML = "";
 
-  Object.entries(data.transactions || {})
+  Object.entries(d.transactions || {})
   .reverse()
   .forEach(([k,v])=>{
-    list.innerHTML += `<li>${v.description} - ${v.credit} JD</li>`;
+    list.innerHTML += `
+      <li>${v.description} - ${v.credit} JD</li>
+    `;
   });
-
 });
 </script>
 

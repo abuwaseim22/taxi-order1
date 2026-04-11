@@ -2,43 +2,27 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Taxi App - طلب تاكسي</title>
+<title>الزبون</title>
 
 <style>
-html, body { height:100%; margin:0; padding:0; font-family: Arial,sans-serif; }
-#map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
+html, body { height:100%; margin:0; font-family: Arial; }
+#map { position:absolute; top:0; left:0; width:100%; height:100%; }
 
-#bookingForm {
+#form {
   position:absolute;
   top:20px;
   left:20px;
-  z-index:2;
-  background: rgba(255,255,255,0.95);
+  background:white;
   padding:15px;
   border-radius:10px;
-  width:90%;
-  max-width:400px;
-  max-height:80vh;
-  overflow-y:auto;
-  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  width:320px;
+  z-index:2;
 }
 
 input, select, button {
   width:100%;
-  margin:8px 0;
-  padding:12px;
-  font-size:16px;
-  border-radius:8px;
-  border:1px solid #ccc;
-  box-sizing:border-box;
-}
-
-button {
-  background:#2563eb;
-  color:white;
-  border:none;
-  cursor:pointer;
-  font-weight:bold;
+  padding:10px;
+  margin:5px 0;
 }
 </style>
 </head>
@@ -47,36 +31,31 @@ button {
 
 <div id="map"></div>
 
-<div id="bookingForm">
+<div id="form">
 <h3>طلب تاكسي 🚕</h3>
 
 <select id="from">
-  <option value="">من أين؟</option>
-  <option value="عمان">عمان</option>
-  <option value="اربد">اربد</option>
-  <option value="الزرقاء">الزرقاء</option>
-  <option value="المفرق">المفرق</option>
+  <option value="">من</option>
+  <option>عمان</option>
+  <option>اربد</option>
+  <option>الزرقاء</option>
+  <option>المفرق</option>
 </select>
 
 <select id="to">
-  <option value="">إلى أين؟</option>
-  <option value="عمان">عمان</option>
-  <option value="اربد">اربد</option>
-  <option value="الزرقاء">الزرقاء</option>
-  <option value="المفرق">المفرق</option>
+  <option value="">إلى</option>
+  <option>عمان</option>
+  <option>اربد</option>
+  <option>الزرقاء</option>
+  <option>المفرق</option>
 </select>
 
 <input id="name" placeholder="الاسم">
 <input id="passengers" type="number" placeholder="عدد الركاب">
-<input id="date" type="date">
-<input id="time" type="time">
-
-<input id="pickupAddress" placeholder="عنوان الانطلاق" readonly>
-<input id="dropoffAddress" placeholder="عنوان الوصول" readonly>
 
 <div id="price">السعر: 0</div>
 
-<button id="bookRideBtn">طلب 🚕</button>
+<button id="send">طلب</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -93,25 +72,50 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-document.getElementById("bookRideBtn").addEventListener("click",()=>{
+// السعر
+function priceCalc(from,to,p){
 
-  const id = "order"+Date.now();
+  if((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5*p;
+  if((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5*p;
+  if((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3*p;
+
+  return 0;
+}
+
+// تحديث السعر
+function updatePrice(){
+  let from = from.value;
+  let to = to.value;
+  let p = Number(passengers.value || 1);
+
+  if(p >= 3) p = 3;
+
+  price.innerText = "السعر: " + priceCalc(from,to,p);
+}
+
+from.onchange = updatePrice;
+to.onchange = updatePrice;
+passengers.oninput = updatePrice;
+
+// إرسال الطلب
+send.onclick = () => {
+
+  let p = Number(passengers.value || 1);
+  if(p >= 3) p = 3;
+
+  let id = "order"+Date.now();
 
   db.ref("orders/"+id).set({
-    pickup_location: document.getElementById("from").value,
-    dropoff_location: document.getElementById("to").value,
-    customer_name: document.getElementById("name").value,
-    passenger_count: document.getElementById("passengers").value,
-    pickup_date: document.getElementById("date").value,
-    pickup_time: document.getElementById("time").value,
-    pickup_address: document.getElementById("pickupAddress").value,
-    dropoff_address: document.getElementById("dropoffAddress").value,
-    price: 10,
+    pickup_location: from.value,
+    dropoff_location: to.value,
+    customer_name: name.value,
+    passenger_count: p,
+    price: priceCalc(from.value,to.value,p),
     status: "sent"
   });
 
   alert("تم إرسال الطلب 🚕");
-});
+};
 </script>
 
 </body>

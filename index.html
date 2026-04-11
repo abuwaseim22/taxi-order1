@@ -5,21 +5,9 @@
 <title>السائق</title>
 
 <style>
-body { font-family: Arial; background:#f0f0f0; }
-.order {
-  background:white;
-  margin:10px;
-  padding:10px;
-  border-radius:10px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.2);
-}
-button {
-  background:green;
-  color:white;
-  padding:10px;
-  border:none;
-  width:100%;
-}
+body { font-family: Arial; background:#f4f4f4; }
+.card { background:white; margin:10px; padding:10px; border-radius:10px; }
+button { width:100%; padding:10px; margin-top:5px; }
 </style>
 </head>
 
@@ -44,72 +32,104 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const ordersDiv = document.getElementById("orders");
 const sound = document.getElementById("sound");
 
-// 🔥 REAL TIME
-db.ref("orders").orderByChild("status").equalTo("sent")
-.on("value", snap=>{
+// 🔥 real-time
+db.ref("orders").on("value", snap=>{
 
-  ordersDiv.innerHTML="";
+  orders.innerHTML = "";
 
   if(snap.exists()){
-    sound.play();
+    sound.currentTime = 0;
+    sound.play().catch(()=>{});
   }
 
-  snap.forEach(child=>{
-    const id = child.key;
-    const o = child.val();
+  snap.forEach(o=>{
 
-    ordersDiv.innerHTML += `
-      <div class="order">
-        <p>${o.customer_name}</p>
-        <p>${o.pickup_location} → ${o.dropoff_location}</p>
-        <p>${o.price} JD</p>
-        <button onclick="accept('${id}')">قبول</button>
+    let d = o.val();
+    let id = o.key;
+
+    let btn = "";
+
+    if(d.status === "sent"){
+      btn = `<button onclick="accept('${id}')">قبول</button>`;
+    }
+
+    if(d.status === "accepted" && d.driver_id === "driver123"){
+      btn = `<button onclick="complete('${id}')">إنهاء الرحلة</button>`;
+    }
+
+    orders.innerHTML += `
+      <div class="card">
+        <p>${d.customer_name}</p>
+        <p>${d.pickup_location} → ${d.dropoff_location}</p>
+        <p>${d.price} JD</p>
+        ${btn}
       </div>
     `;
   });
 });
 
-// 🚕 Accept (حماية + Wallet)
+// قبول
 function accept(id){
+
+  db.ref("orders/"+id).update({
+    status:"accepted",
+    driver_id:"driver123"
+  });
+
+  alert("تم القبول 🚕");
+}
+
+// إنهاء الرحلة
+function complete(id){
 
   const ref = db.ref("orders/"+id);
 
   ref.once("value").then(snap=>{
-    const o = snap.val();
 
-    if(o.status !== "sent"){
-      alert("تم أخذه من سائق آخر ❌");
+    let o = snap.val();
+
+    if(o.status !== "accepted"){
+      alert("❌");
       return;
     }
 
-    ref.update({
-      status:"accepted",
-      driver_id:"driver123"
-    });
+    let commission = o.price * 0.12;
+    let earn = o.price - commission;
 
-    // 💰 wallet
+    // wallet
     const wallet = db.ref("wallets/drivers/driver123");
 
     wallet.once("value").then(w=>{
-      let data = w.val() || {balance:0, transactions:{}};
 
-      data.balance += o.price;
+      let d = w.val() || {balance:0, transactions:{}};
 
-      const t = Date.now();
+      d.balance += earn;
 
-      data.transactions[t] = {
-        description: o.pickup_location + " → " + o.dropoff_location,
+      let t = Date.now();
+
+      d.transactions[t] = {
+        description: o.pickup_location+" → "+o.dropoff_location,
         date: new Date().toLocaleString(),
-        credit: o.price
+        credit: earn,
+        commission: commission
       };
 
-      wallet.set(data);
+      wallet.set(d);
     });
 
-    alert("تم قبول الطلب 🚕");
+    // أرشفة
+    db.ref("myTrips/driver123/"+id).set({
+      ...o,
+      status:"completed",
+      earned: earn,
+      commission: commission
+    });
+
+    ref.update({status:"completed"});
+
+    alert("تم إنهاء الرحلة ✅");
   });
 }
 </script>
