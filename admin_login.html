@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>دخول الأدمن</title>
+
+<style>
+body{
+  font-family: Arial;
+  background: linear-gradient(135deg,#1e3a8a,#2563eb);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  margin:0;
+}
+
+.box{
+  background:white;
+  padding:25px;
+  border-radius:15px;
+  width:300px;
+  text-align:center;
+}
+
+input{
+  width:100%;
+  padding:10px;
+  margin:8px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+button{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#1e40af;
+}
+
+#msg{
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+<h2>دخول الأدمن 🔐</h2>
+
+<input id="user" placeholder="اسم المستخدم">
+<input id="pass" type="password" placeholder="كلمة المرور">
+
+<button onclick="login()">دخول</button>
+
+<p id="msg"></p>
+</div>
+
+<script>
+
+function login(){
+
+  let user = document.getElementById("user").value;
+  let pass = document.getElementById("pass").value;
+
+  // 🔥 بيانات الأدمن (ثابتة الآن)
+  if(user === "admin" && pass === "1234"){
+
+    localStorage.setItem("admin","true");
+
+    document.getElementById("msg").innerText = "تم الدخول ✅";
+
+    setTimeout(()=>{
+      window.location.href = "admin.html";
+    },1000);
+
+  } else {
+    document.getElementById("msg").innerText = "خطأ ❌";
+  }
+}
+
+</script>
+
+</body>
+</html>

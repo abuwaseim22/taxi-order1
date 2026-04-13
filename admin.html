@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard الإدارة</title>
+
+<style>
+body{
+  font-family: Arial;
+  background:#f1f5f9;
+  margin:0;
+}
+
+h2{
+  text-align:center;
+  padding:10px;
+}
+
+/* 🔵 Stats */
+.top{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:10px;
+}
+
+.cardStat{
+  flex:1;
+  min-width:150px;
+  background:#2563eb;
+  color:white;
+  padding:15px;
+  border-radius:10px;
+  text-align:center;
+}
+
+/* 🔍 search */
+.searchBox{
+  padding:10px;
+}
+
+input{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+/* 🧾 card */
+.driver{
+  background:white;
+  margin:10px;
+  padding:10px;
+  border-radius:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+button{
+  width:100%;
+  margin-top:5px;
+  padding:10px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.blue{background:#2563eb;color:white;}
+.green{background:#22c55e;color:white;}
+.red{background:#ef4444;color:white;}
+</style>
+</head>
+
+<body>
+
+<h2>📊 Dashboard الإدارة</h2>
+
+<!-- 🔐 حماية الأدمن -->
+<script>
+if(localStorage.getItem("admin") !== "true"){
+  alert("ممنوع الدخول ❌");
+  window.location.href = "admin-login.html";
+}
+</script>
+
+<!-- 🔵 Stats -->
+<div class="top">
+  <div class="cardStat">
+    <h3 id="driversCount">0</h3>
+    <p>السائقين</p>
+  </div>
+
+  <div class="cardStat">
+    <h3 id="totalBalance">0</h3>
+    <p>إجمالي الأرصدة</p>
+  </div>
+
+  <div class="cardStat">
+    <h3 id="totalCommission">0</h3>
+    <p>إجمالي العمولة</p>
+  </div>
+
+  <div class="cardStat">
+    <h3 id="blockedCount">0</h3>
+    <p>الموقوفين</p>
+  </div>
+</div>
+
+<!-- 🔍 Search -->
+<div class="searchBox">
+  <input id="search" placeholder="ابحث عن سائق...">
+</div>
+
+<!-- 🧾 Drivers -->
+<div id="drivers"></div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const driversDiv = document.getElementById("drivers");
+const searchInput = document.getElementById("search");
+
+let allDrivers = {};
+
+db.ref("drivers").on("value", snap=>{
+  allDrivers = snap.val() || {};
+  render(allDrivers);
+});
+
+// 🔍 search
+searchInput.oninput = ()=>{
+  let val = searchInput.value.toLowerCase();
+
+  let filtered = {};
+
+  Object.entries(allDrivers).forEach(([id,d])=>{
+    if(
+      (d.name && d.name.toLowerCase().includes(val)) ||
+      (d.phone && d.phone.includes(val))
+    ){
+      filtered[id]=d;
+    }
+  });
+
+  render(filtered);
+};
+
+
+// 🧠 render
+function render(data){
+
+  driversDiv.innerHTML = "";
+
+  let count=0;
+  let balance=0;
+  let commission=0;
+  let blocked=0;
+
+  Object.entries(data).forEach(([id,d])=>{
+
+    count++;
+    balance += Number(d.balance || 0);
+    commission += Number(d.totalCommission || 0);
+    if(d.status==="blocked") blocked++;
+
+    driversDiv.innerHTML += `
+      <div class="driver">
+        <h3>${d.name}</h3>
+        <p>📞 ${d.phone}</p>
+        <p>💰 الرصيد: ${d.balance}</p>
+        <p>⚡ الحالة: ${d.status}</p>
+
+        <button class="blue" onclick="charge('${id}')">شحن +10</button>
+        <button class="green" onclick="activate('${id}')">تفعيل</button>
+        <button class="red" onclick="block('${id}')">إيقاف</button>
+      </div>
+    `;
+  });
+
+  driversCount.innerText = count;
+  totalBalance.innerText = balance.toFixed(2);
+  totalCommission.innerText = commission.toFixed(2);
+  blockedCount.innerText = blocked;
+}
+
+
+// 💰 charge
+function charge(id){
+  db.ref("drivers/"+id).once("value").then(snap=>{
+    let d=snap.val();
+    db.ref("drivers/"+id).update({
+      balance:(d.balance||0)+10,
+      status:"active"
+    });
+  });
+}
+
+// 🟢 activate
+function activate(id){
+  db.ref("drivers/"+id).update({status:"active"});
+}
+
+// 🔴 block
+function block(id){
+  db.ref("drivers/"+id).update({status:"blocked"});
+}
+
+</script>
+
+</body>
+</html>

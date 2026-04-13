@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>تسجيل دخول السائق</title>
+</head>
+
+<body>
+
+<h2>تسجيل دخول 🚕</h2>
+
+<input id="phone" placeholder="رقم الهاتف">
+<input id="password" placeholder="كلمة المرور" type="password">
+
+<button onclick="login()">دخول</button>
+
+<p id="msg"></p>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function login(){
+
+  let phone = document.getElementById("phone").value;
+  let pass = document.getElementById("password").value;
+
+  db.ref("drivers").once("value").then(snap=>{
+
+    let found = false;
+
+    snap.forEach(d=>{
+
+      let data = d.val();
+
+      if(data.phone === phone && data.password === pass){
+
+        found = true;
+
+        // حفظ تسجيل الدخول
+        localStorage.setItem("driverId", d.key);
+
+        document.getElementById("msg").innerText = "تم الدخول بنجاح 🚕";
+
+        // تحويل لصفحة السائق
+        setTimeout(()=>{
+          window.location.href = "driver.html";
+        },1000);
+
+      }
+
+    });
+
+    if(!found){
+      document.getElementById("msg").innerText = "بيانات خاطئة ❌";
+    }
+
+  });
+
+}
+
+</script>
+
+</body>
+</html>
