@@ -4,17 +4,57 @@
 <meta charset="UTF-8">
 <title>طلب تاكسي</title>
 
+<!-- 🌍 خريطة -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
-body { font-family: Arial; background:#f4f4f4; padding:20px; }
-.card { background:white; padding:15px; border-radius:10px; }
-input, select { width:100%; padding:10px; margin:5px 0; }
-button { width:100%; padding:10px; margin-top:10px; }
+body{
+  font-family: Arial;
+  margin:0;
+  background: linear-gradient(135deg,#0f172a,#1e3a8a);
+  color:white;
+}
+
+/* 📦 الكارد */
+.card{
+  background:white;
+  color:black;
+  margin:15px;
+  padding:15px;
+  border-radius:12px;
+}
+
+/* 🎯 inputs */
+input, select{
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+/* 🔘 زر */
+button{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+}
+
+/* 🌍 الخريطة */
+#map{
+  height:250px;
+  border-radius:12px;
+  margin-top:10px;
+}
 </style>
 </head>
 
 <body>
 
-<h2>طلب سيارة 🚕</h2>
+<h2 style="text-align:center">🚕 اطلب سيارة</h2>
 
 <div class="card">
 
@@ -36,13 +76,22 @@ button { width:100%; padding:10px; margin-top:10px; }
 
 <input id="passengers" type="number" placeholder="عدد الركاب">
 
+<!-- 💰 السعر -->
+<p>💰 السعر: <span id="price">0</span> JD</p>
+
 <button onclick="sendOrder()">إرسال الطلب</button>
+
+<!-- 🌍 خريطة -->
+<div id="map"></div>
 
 </div>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
@@ -56,19 +105,29 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+/* 🚫 حماية بسيطة */
+if(!localStorage.getItem("customer")){
+  // لو بدك تسجيل لاحقاً
+  console.log("guest mode");
+}
 
-// 🔥 دالة السعر (المعدلة فقط)
+/* 🌍 خريطة */
+let map = L.map('map').setView([31.9632, 35.9306], 8);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: ''
+}).addTo(map);
+
+/* 💰 حساب السعر */
 function priceCalc(from, to, passengers){
 
-  // 🚫 منع نفس المنطقة
   if(from === to){
-    alert("❌ لا يمكن اختيار نفس المنطقة");
+    alert("❌ نفس المنطقة غير مسموح");
     return 0;
   }
 
   let price = 0;
 
-  // 🟢 عمان ↔ أي منطقة
   if(
     (from === "عمان" && to !== "عمان") ||
     (to === "عمان" && from !== "عمان")
@@ -76,7 +135,6 @@ function priceCalc(from, to, passengers){
     price = 5;
   }
 
-  // 🔵 اربد ↔ الزرقاء
   else if(
     (from === "اربد" && to === "الزرقاء") ||
     (from === "الزرقاء" && to === "اربد")
@@ -84,7 +142,6 @@ function priceCalc(from, to, passengers){
     price = 4;
   }
 
-  // 🟡 اربد ↔ المفرق
   else if(
     (from === "اربد" && to === "المفرق") ||
     (from === "المفرق" && to === "اربد")
@@ -92,7 +149,6 @@ function priceCalc(from, to, passengers){
     price = 3;
   }
 
-  // 🔴 المفرق ↔ الزرقاء
   else if(
     (from === "المفرق" && to === "الزرقاء") ||
     (from === "الزرقاء" && to === "المفرق")
@@ -100,7 +156,6 @@ function priceCalc(from, to, passengers){
     price = 2.5;
   }
 
-  // ❌ غير مدعوم
   else{
     alert("❌ هذا المسار غير مدعوم");
     return 0;
@@ -109,8 +164,21 @@ function priceCalc(from, to, passengers){
   return price * passengers;
 }
 
+/* 🔄 تحديث السعر لحظي */
+document.getElementById("from").onchange =
+document.getElementById("to").onchange =
+document.getElementById("passengers").oninput = function(){
 
-// 🚕 إرسال الطلب
+  let from = document.getElementById("from").value;
+  let to = document.getElementById("to").value;
+  let p = Number(document.getElementById("passengers").value || 1);
+
+  let price = priceCalc(from,to,p);
+
+  document.getElementById("price").innerText = price;
+};
+
+/* 🚕 إرسال الطلب */
 function sendOrder(){
 
   let name = document.getElementById("name").value;
@@ -118,15 +186,9 @@ function sendOrder(){
   let to = document.getElementById("to").value;
   let passengers = Number(document.getElementById("passengers").value);
 
-  if(!name || !passengers){
-    alert("عبّي البيانات ❌");
-    return;
-  }
+  let price = priceCalc(from,to,passengers);
 
-  let price = priceCalc(from, to, passengers);
-
-  // 🚫 إذا في مشكلة
-  if(price === 0){
+  if(price === 0 || !name){
     return;
   }
 
