@@ -5,33 +5,95 @@
 <title>السائق</title>
 
 <style>
-body { font-family: Arial; background:#f4f4f4; }
-.card { background:white; margin:10px; padding:10px; border-radius:10px; }
-button { width:100%; padding:10px; margin-top:5px; }
+body {
+  font-family: Arial;
+  background: linear-gradient(135deg,#1e3a8a,#2563eb);
+  margin:0;
+}
+
+/* 🔵 الهيدر */
+.header {
+  background:white;
+  padding:15px;
+  text-align:center;
+  box-shadow:0 5px 10px rgba(0,0,0,0.1);
+}
+
+/* 👨‍✈️ الاسم */
+.name {
+  font-weight:bold;
+  font-size:18px;
+}
+
+/* 💰 الرصيد */
+.balance {
+  margin-top:5px;
+  color:#16a34a;
+  font-weight:bold;
+}
+
+/* 🔔 إشعار */
+.notify {
+  display:none;
+  background:#22c55e;
+  color:white;
+  text-align:center;
+  padding:8px;
+}
+
+/* 📦 الكونتينر */
+.container {
+  padding:15px;
+}
+
+/* 🚕 الكروت */
+.card {
+  margin-bottom:12px;
+  padding:12px;
+  border-radius:12px;
+  color:white;
+}
+
+/* 🎨 ألوان حسب الحالة */
+.sent { background:#f59e0b; }       /* جديد */
+.accepted { background:#3b82f6; }   /* قيد التنفيذ */
+.completed { background:#10b981; }  /* منتهي */
+
+/* 🔘 الأزرار */
+button {
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  border:none;
+  border-radius:8px;
+  background:white;
+  color:black;
+  cursor:pointer;
+}
 </style>
 </head>
 
 <body>
 
-<h2>طلبات السائق 🚕</h2>
-<button onclick="logout()">تسجيل خروج</button>
+<div class="header">
+  <div class="name">🚕 <span id="driverName">...</span></div>
+  <div class="balance">💰 الرصيد: <span id="balance">0</span> JD</div>
+</div>
 
-<div id="orders"></div>
+<div id="notify" class="notify">🚨 طلب جديد!</div>
 
+<div class="container">
+  <div id="orders"></div>
+</div>
+
+<audio id="sound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
 
-// 🔐 تسجيل الدخول
-const driverId = localStorage.getItem("driverId");
-
-if(!driverId){
-  alert("سجل دخول أولاً");
-  window.location.href = "login.html";
-}
-
-// 🔥 Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -42,25 +104,57 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+const driverId = localStorage.getItem("driverId");
 const ordersDiv = document.getElementById("orders");
+const sound = document.getElementById("sound");
+const notify = document.getElementById("notify");
 
-// 🚕 عرض الطلبات (فلترة ذكية)
+let lastOrdersCount = 0;
+
+// 🚫 حماية
+if(!driverId){
+  location.href="login.html";
+}
+
+// 👨‍✈️ اسم + رصيد
+function loadDriver(){
+  db.ref("drivers/"+driverId).on("value",snap=>{
+    let d = snap.val();
+    if(d){
+      document.getElementById("driverName").innerText = d.name || "سائق";
+      document.getElementById("balance").innerText = (d.balance || 0).toFixed(2);
+    }
+  });
+}
+loadDriver();
+
+
+// 🔥 الطلبات
 db.ref("orders").on("value", snap=>{
+
+  let count = snap.numChildren();
+
+  // 🔔 طلب جديد
+  if(count > lastOrdersCount){
+    sound.play();
+    notify.style.display = "block";
+
+    setTimeout(()=>{
+      notify.style.display = "none";
+    },2000);
+  }
+
+  lastOrdersCount = count;
 
   ordersDiv.innerHTML = "";
 
   db.ref("drivers/"+driverId).once("value").then(driverSnap=>{
 
-    let driver = driverSnap.val() || {};
-    let balance = Number(driver.balance || 0);
+    let driver = driverSnap.val() || {status:"active"};
 
-    // 🔥 block / unblock
-    if(balance <= -1){
-      db.ref("drivers/"+driverId).update({status:"blocked"});
-      ordersDiv.innerHTML = "<h3>❌ حسابك موقوف</h3>";
+    if(driver.status === "blocked"){
+      ordersDiv.innerHTML = "<h3 style='color:white;text-align:center'>❌ حسابك موقوف</h3>";
       return;
-    } else {
-      db.ref("drivers/"+driverId).update({status:"active"});
     }
 
     snap.forEach(o=>{
@@ -68,14 +162,14 @@ db.ref("orders").on("value", snap=>{
       let d = o.val();
       let id = o.key;
 
-      // 🔥 فلترة
+      // فلترة
       if(d.driver_id && d.driver_id !== driverId){
         return;
       }
 
       let btn = "";
 
-      if(!d.driver_id && d.status === "sent"){
+      if(d.status === "sent"){
         btn = `<button onclick="accept('${id}')">قبول</button>`;
       }
 
@@ -83,41 +177,29 @@ db.ref("orders").on("value", snap=>{
         btn = `<button onclick="complete('${id}')">إنهاء الرحلة</button>`;
       }
 
+      // 🎨 تحديد اللون
+      let statusClass = d.status;
+
       ordersDiv.innerHTML += `
-        <div class="card">
-          <p>${d.customer_name}</p>
+        <div class="card ${statusClass}">
+          <p><b>${d.customer_name}</b></p>
           <p>${d.pickup_location} → ${d.dropoff_location}</p>
-          <p>${d.price} JD</p>
+          <p>💰 ${d.price} JD</p>
           ${btn}
         </div>
       `;
     });
 
   });
-
 });
 
 
 // 🚕 قبول
 function accept(id){
-
-  db.ref("drivers/"+driverId).once("value").then(driverSnap=>{
-
-    let driver = driverSnap.val() || {};
-    let balance = Number(driver.balance || 0);
-
-    if(balance <= -1){
-      alert("❌ لا يمكنك القبول");
-      return;
-    }
-
-    db.ref("orders/"+id).update({
-      status:"accepted",
-      driver_id:driverId
-    });
-
+  db.ref("orders/"+id).update({
+    status:"accepted",
+    driver_id:driverId
   });
-
 }
 
 
@@ -133,34 +215,24 @@ function complete(id){
     let commission = o.price * 0.12;
     let earn = o.price - commission;
 
-    let wallet = db.ref("drivers/"+driverId);
+    let walletRef = db.ref("drivers/"+driverId);
 
-    wallet.once("value").then(w=>{
+    walletRef.once("value").then(w=>{
 
-      let d = w.val() || {balance:0};
+      let d = w.val();
 
-      if(d.balance <= 0){
-        d.balance -= commission;
-      } else {
-        d.balance += earn;
-      }
+      d.balance = (d.balance || 0) + earn;
+      d.totalEarned = (d.totalEarned || 0) + earn;
+      d.totalCommission = (d.totalCommission || 0) + commission;
 
-      wallet.set(d);
+      walletRef.set(d);
 
+      ref.update({status:"completed"});
+
+      alert("تم إنهاء الرحلة ✅");
     });
 
-    ref.update({status:"completed"});
-
-    alert("تم إنهاء الرحلة ✅");
-
   });
-}
-
-
-// 🔓 تسجيل خروج
-function logout(){
-  localStorage.removeItem("driverId");
-  window.location.href = "login.html";
 }
 
 </script>

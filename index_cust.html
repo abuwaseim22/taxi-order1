@@ -5,127 +5,146 @@
 <title>طلب تاكسي</title>
 
 <style>
-html, body { height:100%; margin:0; font-family: Arial; }
-#map { position:absolute; top:0; left:0; width:100%; height:100vh; }
-
-#form {
-  position:absolute;
-  top:20px;
-  left:20px;
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  width:320px;
-  z-index:2;
-}
-
-input, select, button {
-  width:100%;
-  padding:10px;
-  margin:5px 0;
-}
-button { background:#2563eb; color:white; border:none; }
+body { font-family: Arial; background:#f4f4f4; padding:20px; }
+.card { background:white; padding:15px; border-radius:10px; }
+input, select { width:100%; padding:10px; margin:5px 0; }
+button { width:100%; padding:10px; margin-top:10px; }
 </style>
 </head>
 
 <body>
 
-<div id="map"></div>
+<h2>طلب سيارة 🚕</h2>
 
-<div id="form">
-<h3>طلب تاكسي 🚕</h3>
+<div class="card">
+
+<input id="name" placeholder="اسمك">
 
 <select id="from">
-<option value="">من</option>
-<option>عمان</option>
-<option>اربد</option>
-<option>الزرقاء</option>
-<option>المفرق</option>
+  <option>عمان</option>
+  <option>اربد</option>
+  <option>الزرقاء</option>
+  <option>المفرق</option>
 </select>
 
 <select id="to">
-<option value="">إلى</option>
-<option>عمان</option>
-<option>اربد</option>
-<option>الزرقاء</option>
-<option>المفرق</option>
+  <option>عمان</option>
+  <option>اربد</option>
+  <option>الزرقاء</option>
+  <option>المفرق</option>
 </select>
 
-<input id="name" placeholder="الاسم">
 <input id="passengers" type="number" placeholder="عدد الركاب">
 
-<div id="price">السعر: 0</div>
+<button onclick="sendOrder()">إرسال الطلب</button>
 
-<button id="send">طلب 🚕</button>
 </div>
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
+
 const firebaseConfig = {
-apiKey:"AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
-authDomain:"abuwaseim-1e6a5.firebaseapp.com",
-databaseURL:"https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
-projectId:"abuwaseim-1e6a5"
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
+  projectId: "abuwaseim-1e6a5"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const fromEl = document.getElementById("from");
-const toEl = document.getElementById("to");
-const nameEl = document.getElementById("name");
-const passengersEl = document.getElementById("passengers");
-const priceEl = document.getElementById("price");
 
-// السعر
-function calc(from,to,p){
-if(!from||!to) return 0;
-if((from==="عمان"&&to==="اربد")||(from==="اربد"&&to==="عمان")) return 5*p;
-if((from==="عمان"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="عمان")) return 2.5*p;
-if((from==="عمان"&&to==="المفرق")||(from==="المفرق"&&to==="عمان")) return 3*p;
-return 0;
+// 🔥 دالة السعر (المعدلة فقط)
+function priceCalc(from, to, passengers){
+
+  // 🚫 منع نفس المنطقة
+  if(from === to){
+    alert("❌ لا يمكن اختيار نفس المنطقة");
+    return 0;
+  }
+
+  let price = 0;
+
+  // 🟢 عمان ↔ أي منطقة
+  if(
+    (from === "عمان" && to !== "عمان") ||
+    (to === "عمان" && from !== "عمان")
+  ){
+    price = 5;
+  }
+
+  // 🔵 اربد ↔ الزرقاء
+  else if(
+    (from === "اربد" && to === "الزرقاء") ||
+    (from === "الزرقاء" && to === "اربد")
+  ){
+    price = 4;
+  }
+
+  // 🟡 اربد ↔ المفرق
+  else if(
+    (from === "اربد" && to === "المفرق") ||
+    (from === "المفرق" && to === "اربد")
+  ){
+    price = 3;
+  }
+
+  // 🔴 المفرق ↔ الزرقاء
+  else if(
+    (from === "المفرق" && to === "الزرقاء") ||
+    (from === "الزرقاء" && to === "المفرق")
+  ){
+    price = 2.5;
+  }
+
+  // ❌ غير مدعوم
+  else{
+    alert("❌ هذا المسار غير مدعوم");
+    return 0;
+  }
+
+  return price * passengers;
 }
 
-function update(){
-let p = Number(passengersEl.value||1);
-if(p>3)p=3;
-priceEl.innerText="السعر: "+calc(fromEl.value,toEl.value,p);
+
+// 🚕 إرسال الطلب
+function sendOrder(){
+
+  let name = document.getElementById("name").value;
+  let from = document.getElementById("from").value;
+  let to = document.getElementById("to").value;
+  let passengers = Number(document.getElementById("passengers").value);
+
+  if(!name || !passengers){
+    alert("عبّي البيانات ❌");
+    return;
+  }
+
+  let price = priceCalc(from, to, passengers);
+
+  // 🚫 إذا في مشكلة
+  if(price === 0){
+    return;
+  }
+
+  let id = "order" + Date.now();
+
+  db.ref("orders/"+id).set({
+    customer_name: name,
+    pickup_location: from,
+    dropoff_location: to,
+    passenger_count: passengers,
+    price: price,
+    status: "sent",
+    driver_id: null
+  });
+
+  alert("تم إرسال الطلب 🚕");
 }
 
-fromEl.onchange=update;
-toEl.onchange=update;
-passengersEl.oninput=update;
-
-// إرسال
-document.getElementById("send").onclick=()=>{
-let p = Number(passengersEl.value||1);
-if(p>3)p=3;
-
-let id="order"+Date.now();
-
-db.ref("orders/"+id).set({
-pickup_location:fromEl.value,
-dropoff_location:toEl.value,
-customer_name:nameEl.value,
-passenger_count:p,
-price:calc(fromEl.value,toEl.value,p),
-status:"sent"
-});
-
-alert("تم الإرسال 🚕");
-};
-
-function initMap(){
-new google.maps.Map(document.getElementById("map"),{
-center:{lat:31.96,lng:35.93},
-zoom:7
-});
-}
-</script>
-
-<script async defer
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFg3BmVVyYR4fVrnac-Je1m150ACQz-G0&callback=initMap">
 </script>
 
 </body>

@@ -5,9 +5,9 @@
 <title>تسجيل دخول</title>
 
 <style>
-body {
+body{
   font-family: Arial;
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  background: linear-gradient(135deg,#1e3a8a,#2563eb);
   display:flex;
   justify-content:center;
   align-items:center;
@@ -15,16 +15,16 @@ body {
   margin:0;
 }
 
-.box {
+.box{
   background:white;
   padding:25px;
   border-radius:15px;
   width:300px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.3);
   text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,0.2);
 }
 
-input {
+input{
   width:100%;
   padding:10px;
   margin:8px 0;
@@ -32,24 +32,24 @@ input {
   border:1px solid #ccc;
 }
 
-button {
+button{
   width:100%;
   padding:10px;
-  margin-top:10px;
   border:none;
   border-radius:8px;
   background:#2563eb;
   color:white;
-  font-size:16px;
   cursor:pointer;
 }
 
-button:hover {
+button:hover{
   background:#1e40af;
 }
 
-#msg {
+#msg{
   margin-top:10px;
+  color:#111;
+  font-size:14px;
 }
 </style>
 </head>
@@ -59,19 +59,22 @@ button:hover {
 <div class="box">
 <h2>تسجيل دخول 🚕</h2>
 
+<!-- 🔥 رقم الهاتف -->
 <input id="phone" placeholder="رقم الهاتف">
 <input id="password" type="password" placeholder="كلمة المرور">
 
 <button onclick="login()">دخول</button>
-<button onclick="goSignup()">مستخدم جديد</button>
 
 <p id="msg"></p>
 </div>
 
+<!-- 🔥 Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
+
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -80,46 +83,40 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 
+const auth = firebase.auth();
+
+// 🔐 Login (Phone → hidden email)
 function login(){
 
   let phone = document.getElementById("phone").value;
   let pass = document.getElementById("password").value;
 
-  db.ref("drivers").once("value").then(snap=>{
+  if(!phone || !pass){
+    document.getElementById("msg").innerText = "عبّي البيانات ❌";
+    return;
+  }
 
-    let found = false;
+  let email = phone + "@taxi.com";
 
-    snap.forEach(d=>{
+  auth.signInWithEmailAndPassword(email, pass)
+  .then(u=>{
 
-      let data = d.val();
+    localStorage.setItem("driverId", u.user.uid);
 
-      if(data.phone === phone && data.password === pass){
+    document.getElementById("msg").innerText = "تم الدخول بنجاح ✅";
 
-        found = true;
+    setTimeout(()=>{
+      window.location.href = "index.html";
+    },800);
 
-        localStorage.setItem("driverId", d.key);
-
-        msg.innerText = "تم الدخول ✅";
-
-        setTimeout(()=>{
-          window.location.href = "index.html";
-        },1000);
-      }
-    });
-
-    if(!found){
-      msg.innerText = "بيانات خاطئة ❌";
-    }
-
+  })
+  .catch(e=>{
+    document.getElementById("msg").innerText = e.message;
   });
 
 }
 
-function goSignup(){
-  window.location.href = "signup.html";
-}
 </script>
 
 </body>
