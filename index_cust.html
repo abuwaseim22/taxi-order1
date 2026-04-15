@@ -4,27 +4,42 @@
 <meta charset="UTF-8">
 <title>طلب تاكسي</title>
 
-<!-- 🌍 خريطة -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 body{
-  font-family: Arial;
   margin:0;
-  background: linear-gradient(135deg,#0f172a,#1e3a8a);
-  color:white;
+  font-family: Arial;
 }
 
-/* 📦 الكارد */
-.card{
-  background:white;
-  color:black;
-  margin:15px;
+/* 🌍 الخريطة خلفية كاملة */
+#map{
+  position: fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  z-index:0;
+}
+
+/* 📦 الواجهة فوق الخريطة */
+.ui{
+  position: relative;
+  z-index:1;
   padding:15px;
-  border-radius:12px;
 }
 
-/* 🎯 inputs */
+/* 🎨 الكارد */
+.card{
+  background: rgba(255,255,255,0.92);
+  padding:15px;
+  border-radius:15px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.2);
+  max-width:400px;
+  margin:auto;
+}
+
+/* inputs */
 input, select{
   width:100%;
   padding:10px;
@@ -33,7 +48,7 @@ input, select{
   border:1px solid #ccc;
 }
 
-/* 🔘 زر */
+/* زر */
 button{
   width:100%;
   padding:10px;
@@ -41,22 +56,29 @@ button{
   border-radius:8px;
   background:#2563eb;
   color:white;
+  cursor:pointer;
 }
 
-/* 🌍 الخريطة */
-#map{
-  height:250px;
-  border-radius:12px;
-  margin-top:10px;
+/* 💰 السعر */
+.price{
+  font-weight:bold;
+  text-align:center;
+  margin:10px 0;
 }
 </style>
 </head>
 
 <body>
 
-<h2 style="text-align:center">🚕 اطلب سيارة</h2>
+<!-- 🌍 الخريطة -->
+<div id="map"></div>
+
+<!-- UI -->
+<div class="ui">
 
 <div class="card">
+
+<h3 style="text-align:center">🚕 اطلب سيارة</h3>
 
 <input id="name" placeholder="اسمك">
 
@@ -74,15 +96,13 @@ button{
   <option>المفرق</option>
 </select>
 
-<input id="passengers" type="number" placeholder="عدد الركاب">
+<input id="passengers" type="number" value="1" placeholder="عدد الركاب">
 
-<!-- 💰 السعر -->
-<p>💰 السعر: <span id="price">0</span> JD</p>
+<div class="price">💰 السعر: <span id="price">0</span> JD</div>
 
-<button onclick="sendOrder()">إرسال الطلب</button>
+<button onclick="sendOrder()">إرسال الطلب 🚕</button>
 
-<!-- 🌍 خريطة -->
-<div id="map"></div>
+</div>
 
 </div>
 
@@ -105,21 +125,19 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 🚫 حماية بسيطة */
-if(!localStorage.getItem("customer")){
-  // لو بدك تسجيل لاحقاً
-  console.log("guest mode");
-}
-
-/* 🌍 خريطة */
+/* 🌍 خريطة خلفية */
 let map = L.map('map').setView([31.9632, 35.9306], 8);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: ''
 }).addTo(map);
 
-/* 💰 حساب السعر */
+
+/* 💰 السعر */
 function priceCalc(from, to, passengers){
+
+  from = from.trim();
+  to = to.trim();
 
   if(from === to){
     alert("❌ نفس المنطقة غير مسموح");
@@ -164,10 +182,9 @@ function priceCalc(from, to, passengers){
   return price * passengers;
 }
 
-/* 🔄 تحديث السعر لحظي */
-document.getElementById("from").onchange =
-document.getElementById("to").onchange =
-document.getElementById("passengers").oninput = function(){
+
+/* 🔄 تحديث السعر */
+function updatePrice(){
 
   let from = document.getElementById("from").value;
   let to = document.getElementById("to").value;
@@ -176,19 +193,24 @@ document.getElementById("passengers").oninput = function(){
   let price = priceCalc(from,to,p);
 
   document.getElementById("price").innerText = price;
-};
+}
+
+document.getElementById("from").onchange =
+document.getElementById("to").onchange =
+document.getElementById("passengers").oninput = updatePrice;
+
 
 /* 🚕 إرسال الطلب */
 function sendOrder(){
 
-  let name = document.getElementById("name").value;
+  let name = document.getElementById("name").value.trim();
   let from = document.getElementById("from").value;
   let to = document.getElementById("to").value;
-  let passengers = Number(document.getElementById("passengers").value);
+  let passengers = Number(document.getElementById("passengers").value || 1);
 
   let price = priceCalc(from,to,passengers);
 
-  if(price === 0 || !name){
+  if(!name || price === 0){
     return;
   }
 

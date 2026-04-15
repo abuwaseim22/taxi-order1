@@ -9,58 +9,30 @@ body {
   font-family: Arial;
   background: linear-gradient(135deg,#1e3a8a,#2563eb);
   margin:0;
+  color:white;
 }
 
-/* 🔵 الهيدر */
+/* الهيدر */
 .header {
   background:white;
+  color:black;
   padding:15px;
   text-align:center;
-  box-shadow:0 5px 10px rgba(0,0,0,0.1);
 }
 
-/* 👨‍✈️ الاسم */
-.name {
-  font-weight:bold;
-  font-size:18px;
-}
-
-/* 💰 الرصيد */
-.balance {
-  margin-top:5px;
-  color:#16a34a;
-  font-weight:bold;
-}
-
-/* 🔔 إشعار */
-.notify {
-  display:none;
-  background:#22c55e;
-  color:white;
-  text-align:center;
-  padding:8px;
-}
-
-/* 📦 الكونتينر */
-.container {
-  padding:15px;
-}
-
-/* 🚕 الكروت */
 .card {
-  margin-bottom:12px;
+  margin:10px;
   padding:12px;
   border-radius:12px;
   color:white;
 }
 
-/* 🎨 ألوان حسب الحالة */
-.sent { background:#f59e0b; }       /* جديد */
-.accepted { background:#3b82f6; }   /* قيد التنفيذ */
-.completed { background:#10b981; }  /* منتهي */
+/* 🎨 نفس الألوان القديمة */
+.sent { background:#f59e0b; }      /* برتقالي */
+.accepted { background:#3b82f6; }  /* أزرق */
+.completed { background:#10b981; }  /* أخضر */
 
-/* 🔘 الأزرار */
-button {
+button{
   width:100%;
   padding:10px;
   margin-top:8px;
@@ -68,7 +40,6 @@ button {
   border-radius:8px;
   background:white;
   color:black;
-  cursor:pointer;
 }
 </style>
 </head>
@@ -76,24 +47,16 @@ button {
 <body>
 
 <div class="header">
-  <div class="name">🚕 <span id="driverName">...</span></div>
-  <div class="balance">💰 الرصيد: <span id="balance">0</span> JD</div>
+  <h3 id="driverName">...</h3>
+  <h2>💰 <span id="balance">0</span> JD</h2>
 </div>
 
-<div id="notify" class="notify">🚨 طلب جديد!</div>
+<div id="orders"></div>
 
-<div class="container">
-  <div id="orders"></div>
-</div>
-
-<audio id="sound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
-
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-
 const firebaseConfig = {
   apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
   authDomain: "abuwaseim-1e6a5.firebaseapp.com",
@@ -105,96 +68,54 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const driverId = localStorage.getItem("driverId");
-const ordersDiv = document.getElementById("orders");
-const sound = document.getElementById("sound");
-const notify = document.getElementById("notify");
 
-let lastOrdersCount = 0;
-
-// 🚫 حماية
 if(!driverId){
   location.href="login.html";
 }
 
-// 👨‍✈️ اسم + رصيد
-function loadDriver(){
-  db.ref("drivers/"+driverId).on("value",snap=>{
-    let d = snap.val();
-    if(d){
-      document.getElementById("driverName").innerText = d.name || "سائق";
-      document.getElementById("balance").innerText = (d.balance || 0).toFixed(2);
-    }
-  });
-}
-loadDriver();
+const driverNameEl = document.getElementById("driverName");
+const balanceEl = document.getElementById("balance");
+const ordersEl = document.getElementById("orders");
 
+/* 👨‍✈️ بيانات السائق */
+db.ref("drivers/"+driverId).on("value",snap=>{
+  let d = snap.val() || {};
+  driverNameEl.innerText = d.name || "سائق";
+  balanceEl.innerText = (d.balance || 0).toFixed(2);
+});
 
-// 🔥 الطلبات
-db.ref("orders").on("value", snap=>{
+/* 🚕 الطلبات */
+db.ref("orders").on("value",snap=>{
 
-  let count = snap.numChildren();
+  ordersEl.innerHTML = "";
 
-  // 🔔 طلب جديد
-  if(count > lastOrdersCount){
-    sound.play();
-    notify.style.display = "block";
+  snap.forEach(o=>{
+    let d = o.val();
+    let id = o.key;
 
-    setTimeout(()=>{
-      notify.style.display = "none";
-    },2000);
-  }
+    if(d.driver_id && d.driver_id !== driverId) return;
 
-  lastOrdersCount = count;
+    let btn = "";
 
-  ordersDiv.innerHTML = "";
-
-  db.ref("drivers/"+driverId).once("value").then(driverSnap=>{
-
-    let driver = driverSnap.val() || {status:"active"};
-
-    if(driver.status === "blocked"){
-      ordersDiv.innerHTML = "<h3 style='color:white;text-align:center'>❌ حسابك موقوف</h3>";
-      return;
+    if(d.status === "sent"){
+      btn = `<button onclick="accept('${id}')">قبول</button>`;
     }
 
-    snap.forEach(o=>{
+    if(d.status === "accepted" && d.driver_id === driverId){
+      btn = `<button onclick="complete('${id}')">إنهاء الرحلة</button>`;
+    }
 
-      let d = o.val();
-      let id = o.key;
-
-      // فلترة
-      if(d.driver_id && d.driver_id !== driverId){
-        return;
-      }
-
-      let btn = "";
-
-      if(d.status === "sent"){
-        btn = `<button onclick="accept('${id}')">قبول</button>`;
-      }
-
-      if(d.status === "accepted" && d.driver_id === driverId){
-        btn = `<button onclick="complete('${id}')">إنهاء الرحلة</button>`;
-      }
-
-      // 🎨 تحديد اللون
-      let statusClass = d.status;
-
-      ordersDiv.innerHTML += `
-        <div class="card ${statusClass}">
-          <p><b>${d.customer_name}</b></p>
-          <p>${d.pickup_location} → ${d.dropoff_location}</p>
-          <p>💰 ${d.price} JD</p>
-          ${btn}
-        </div>
-      `;
-    });
-
+    ordersEl.innerHTML += `
+      <div class="card ${d.status}">
+        <p><b>${d.customer_name || ""}</b></p>
+        <p>💰 ${d.price || 0} JD</p>
+        ${btn}
+      </div>
+    `;
   });
 });
 
-
-// 🚕 قبول
+/* قبول */
 function accept(id){
   db.ref("orders/"+id).update({
     status:"accepted",
@@ -202,11 +123,10 @@ function accept(id){
   });
 }
 
-
-// 🏁 إنهاء
+/* إنهاء */
 function complete(id){
 
-  const ref = db.ref("orders/"+id);
+  let ref = db.ref("orders/"+id);
 
   ref.once("value").then(snap=>{
 
@@ -215,26 +135,32 @@ function complete(id){
     let commission = o.price * 0.12;
     let earn = o.price - commission;
 
-    let walletRef = db.ref("drivers/"+driverId);
+    let driverRef = db.ref("drivers/"+driverId);
 
-    walletRef.once("value").then(w=>{
+    driverRef.once("value").then(w=>{
 
-      let d = w.val();
+      let d = w.val() || {};
 
-      d.balance = (d.balance || 0) + earn;
-      d.totalEarned = (d.totalEarned || 0) + earn;
-      d.totalCommission = (d.totalCommission || 0) + commission;
+      let newBalance = (d.balance || 0) - commission;
 
-      walletRef.set(d);
+      driverRef.update({
+        balance: newBalance,
+        totalEarned: (d.totalEarned || 0) + earn,
+        totalCommission: (d.totalCommission || 0) + commission
+      });
 
       ref.update({status:"completed"});
 
-      alert("تم إنهاء الرحلة ✅");
-    });
+      if(newBalance <= -1){
+        driverRef.update({status:"blocked"});
+        alert("🚫 تم إيقافك");
+      } else {
+        alert("تم إنهاء الرحلة");
+      }
 
+    });
   });
 }
-
 </script>
 
 </body>
