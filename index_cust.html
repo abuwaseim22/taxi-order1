@@ -2,107 +2,124 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>طلب تاكسي</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>طلب سيارة</title>
 
 <style>
 body{
   margin:0;
-  font-family: Arial;
+  font-family:Arial;
 }
 
-/* 🌍 الخريطة خلفية كاملة */
+/* 🗺️ خريطة */
 #map{
-  position: fixed;
-  top:0;
-  left:0;
+  height:100vh;
   width:100%;
-  height:100%;
-  z-index:0;
 }
 
-/* 📦 الواجهة فوق الخريطة */
-.ui{
-  position: relative;
-  z-index:1;
-  padding:15px;
+/* 📍 صندوق العنوان */
+#addressBox{
+  position:fixed;
+  top:10px;
+  left:10px;
+  background:white;
+  padding:12px;
+  border-radius:12px;
+  width:260px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.4);
+  z-index:9999;
+  font-size:13px;
 }
 
-/* 🎨 الكارد */
-.card{
-  background: rgba(255,255,255,0.92);
-  padding:15px;
+/* 📦 الفورم */
+.box{
+  position:fixed;
+  bottom:10px;
+  left:50%;
+  transform:translateX(-50%);
+  background:white;
+  padding:20px;
   border-radius:15px;
-  box-shadow:0 5px 20px rgba(0,0,0,0.2);
-  max-width:400px;
-  margin:auto;
+  width:95%;
+  max-width:420px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  z-index:9999;
 }
 
-/* inputs */
+/* 🔥 تكبير */
 input, select{
   width:100%;
-  padding:10px;
-  margin:5px 0;
-  border-radius:8px;
+  padding:14px;
+  margin:8px 0;
+  border-radius:10px;
   border:1px solid #ccc;
+  font-size:17px;
 }
 
-/* زر */
 button{
   width:100%;
-  padding:10px;
+  padding:14px;
   border:none;
-  border-radius:8px;
+  border-radius:10px;
   background:#2563eb;
   color:white;
-  cursor:pointer;
+  font-size:17px;
+  margin-top:5px;
 }
 
-/* 💰 السعر */
-.price{
-  font-weight:bold;
+#price{
+  font-size:20px;
   text-align:center;
-  margin:10px 0;
+  margin-top:10px;
+  font-weight:bold;
 }
 </style>
 </head>
 
 <body>
 
-<!-- 🌍 الخريطة -->
 <div id="map"></div>
 
-<!-- UI -->
-<div class="ui">
+<div id="addressBox">
+  <div id="pickupText">📍 جاري التحميل...</div>
+  <div id="dropText">🏁 جاري التحميل...</div>
+</div>
 
-<div class="card">
-
-<h3 style="text-align:center">🚕 اطلب سيارة</h3>
-
-<input id="name" placeholder="اسمك">
+<div class="box">
 
 <select id="from">
+  <option value="">من</option>
   <option>عمان</option>
-  <option>اربد</option>
+  <option>إربد</option>
   <option>الزرقاء</option>
   <option>المفرق</option>
 </select>
 
 <select id="to">
+  <option value="">إلى</option>
   <option>عمان</option>
-  <option>اربد</option>
+  <option>إربد</option>
   <option>الزرقاء</option>
   <option>المفرق</option>
 </select>
 
-<input id="passengers" type="number" value="1" placeholder="عدد الركاب">
+<input id="pickupDetail" placeholder="📍 العنوان التفصيلي" readonly>
+<input id="dropDetail" placeholder="🏁 العنوان التفصيلي" readonly>
 
-<div class="price">💰 السعر: <span id="price">0</span> JD</div>
+<input id="passengers" type="number" placeholder="عدد الركاب (1-3)" min="1" max="3">
 
-<button onclick="sendOrder()">إرسال الطلب 🚕</button>
+<input id="date" type="date">
+<input id="time" type="time">
 
-</div>
+<button onclick="calc()">احسب السعر</button>
+
+<div id="price">0 JD</div>
+
+<button onclick="send()">تأكيد الحجز</button>
+
+<p id="msg"></p>
 
 </div>
 
@@ -110,125 +127,145 @@ button{
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-<!-- Leaflet -->
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
+  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com"
+});
+
+const db = firebase.database();
+
+let pickupLat, pickupLng, dropLat, dropLng;
+let totalPrice = 0;
+
+/* 🧠 جلب العنوان */
+function getAddress(lat,lng,cb){
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+  .then(r=>r.json())
+  .then(d=>cb(d.display_name));
+}
+</script>
+
+<!-- MAP -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyD9Y8TqIixyLGuv7C5WrWxl2XGmIvWtul8",
-  authDomain: "abuwaseim-1e6a5.firebaseapp.com",
-  databaseURL: "https://abuwaseim-1e6a5-default-rtdb.firebaseio.com",
-  projectId: "abuwaseim-1e6a5"
-};
+var map = L.map('map').setView([31.95,35.93], 10);
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-/* 🌍 خريطة خلفية */
-let map = L.map('map').setView([31.9632, 35.9306], 8);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: ''
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19
 }).addTo(map);
 
+/* أيقونات */
+const pickupIcon = L.icon({
+  iconUrl:"https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+  iconSize:[32,32]
+});
+
+const dropIcon = L.icon({
+  iconUrl:"https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+  iconSize:[32,32]
+});
+
+/* ماركر */
+let pickupMarker = L.marker([31.95,35.93],{draggable:true,icon:pickupIcon}).addTo(map);
+let dropMarker = L.marker([31.97,35.95],{draggable:true,icon:dropIcon}).addTo(map);
+
+/* تحديث */
+function updatePickup(){
+  let p = pickupMarker.getLatLng();
+  pickupLat = p.lat;
+  pickupLng = p.lng;
+
+  getAddress(p.lat,p.lng,(addr)=>{
+    pickupDetail.value = addr;
+    pickupText.innerText = "📍 " + addr;
+  });
+}
+
+function updateDrop(){
+  let d = dropMarker.getLatLng();
+  dropLat = d.lat;
+  dropLng = d.lng;
+
+  getAddress(d.lat,d.lng,(addr)=>{
+    dropDetail.value = addr;
+    dropText.innerText = "🏁 " + addr;
+  });
+}
+
+updatePickup();
+updateDrop();
+
+pickupMarker.on("dragend", updatePickup);
+dropMarker.on("dragend", updateDrop);
 
 /* 💰 السعر */
-function priceCalc(from, to, passengers){
+function calc(){
 
-  from = from.trim();
-  to = to.trim();
+  let from = from.value;
+  let to = to.value;
+  let p = Number(passengers.value);
 
   if(from === to){
-    alert("❌ نفس المنطقة غير مسموح");
-    return 0;
-  }
-
-  let price = 0;
-
-  if(
-    (from === "عمان" && to !== "عمان") ||
-    (to === "عمان" && from !== "عمان")
-  ){
-    price = 5;
-  }
-
-  else if(
-    (from === "اربد" && to === "الزرقاء") ||
-    (from === "الزرقاء" && to === "اربد")
-  ){
-    price = 4;
-  }
-
-  else if(
-    (from === "اربد" && to === "المفرق") ||
-    (from === "المفرق" && to === "اربد")
-  ){
-    price = 3;
-  }
-
-  else if(
-    (from === "المفرق" && to === "الزرقاء") ||
-    (from === "الزرقاء" && to === "المفرق")
-  ){
-    price = 2.5;
-  }
-
-  else{
-    alert("❌ هذا المسار غير مدعوم");
-    return 0;
-  }
-
-  return price * passengers;
-}
-
-
-/* 🔄 تحديث السعر */
-function updatePrice(){
-
-  let from = document.getElementById("from").value;
-  let to = document.getElementById("to").value;
-  let p = Number(document.getElementById("passengers").value || 1);
-
-  let price = priceCalc(from,to,p);
-
-  document.getElementById("price").innerText = price;
-}
-
-document.getElementById("from").onchange =
-document.getElementById("to").onchange =
-document.getElementById("passengers").oninput = updatePrice;
-
-
-/* 🚕 إرسال الطلب */
-function sendOrder(){
-
-  let name = document.getElementById("name").value.trim();
-  let from = document.getElementById("from").value;
-  let to = document.getElementById("to").value;
-  let passengers = Number(document.getElementById("passengers").value || 1);
-
-  let price = priceCalc(from,to,passengers);
-
-  if(!name || price === 0){
+    alert("❌ لا يمكن نفس المنطقة");
     return;
   }
 
-  let id = "order" + Date.now();
+  if(p < 1 || p > 3){
+    alert("❌ الحد الأقصى 3");
+    return;
+  }
 
-  db.ref("orders/"+id).set({
-    customer_name: name,
-    pickup_location: from,
-    dropoff_location: to,
-    passenger_count: passengers,
-    price: price,
-    status: "sent",
-    driver_id: null
-  });
+  if((from==="إربد"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="إربد")){
+    totalPrice = 4 * p;
+  }
+  else if((from==="إربد"&&to==="المفرق")||(from==="المفرق"&&to==="إربد")){
+    totalPrice = 3 * p;
+  }
+  else if((from==="المفرق"&&to==="الزرقاء")||(from==="الزرقاء"&&to==="المفرق")){
+    totalPrice = 2.5 * p;
+  }
+  else{
+    totalPrice = 5 * p;
+  }
 
-  alert("تم إرسال الطلب 🚕");
+  price.innerText = totalPrice + " JD";
 }
 
+/* 🚕 إرسال */
+function send(){
+
+  if(!from.value || !to.value || !passengers.value || !date.value || !time.value){
+    msg.innerText="❌ عبّي كل البيانات";
+    return;
+  }
+
+  db.ref("orders").push({
+    pickup_location: from.value,
+    dropoff_location: to.value,
+
+    pickup_lat: pickupLat,
+    pickup_lng: pickupLng,
+    pickup_address: pickupDetail.value,
+
+    drop_lat: dropLat,
+    drop_lng: dropLng,
+    drop_address: dropDetail.value,
+
+    passengers: passengers.value,
+    date: date.value,
+    time: time.value,
+
+    price: totalPrice,
+    status:"sent",
+    customer_name:"زبون"
+  });
+
+  msg.innerText="✅ تم الحجز";
+}
 </script>
 
 </body>
